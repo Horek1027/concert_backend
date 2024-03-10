@@ -33,6 +33,7 @@ public class EventsController {
     }
     //使用關鍵字搜尋
     @GetMapping("/search/{input}")
+    public RestfulResponse<List<Events>> wordSerchEvent(@PathVariable String input){
         return  eventsService.wordSerchEvent(input);
     }
 

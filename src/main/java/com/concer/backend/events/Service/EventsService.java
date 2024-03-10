@@ -18,7 +18,7 @@ public interface EventsService {
     Optional<Events> getEventsInfo (Integer eventsId);
 
     //關鍵字搜尋
-    RestfulResponse<List<EventsResponse>> wordSerchEvent(String input);
+    RestfulResponse<List<Events>> wordSerchEvent(String input);
 
 
 

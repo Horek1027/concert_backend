@@ -39,11 +39,16 @@ public class EventsServiceImpl implements EventsService {
 
     //關鍵字搜尋
     @Override
-    public RestfulResponse<List<EventsResponse>> wordSerchEvent(String input) {
+    public RestfulResponse<List<Events>> wordSerchEvent(String input) {
         System.out.println("前端送來的搜尋字串:" + input);
-        List<EventsResponse> eventsList = eventsRepository.searchProgramInfoByName(input);
 
-        RestfulResponse<List<EventsResponse>> response = new RestfulResponse<>("0000", "關鍵字搜尋成功", eventsList);
+        List<Events> eventsList = eventsRepository.searchProgramInfoByName(input);
+        if(eventsList.isEmpty()){
+            RestfulResponse<List<Events>> response = new RestfulResponse<>("-0001", "關鍵字查無資料", eventsList);
+            return response;
+
+        }
+        RestfulResponse<List<Events>> response = new RestfulResponse<>("0000", "關鍵字搜尋成功", eventsList);
         return response;
     }
 

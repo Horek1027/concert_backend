@@ -1,5 +1,6 @@
 package com.concer.backend.events.Controller;
 
+import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.events.Service.ImageService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +51,6 @@ public class ImageController {
         return new ResponseEntity<byte[]>(imageData,headers, HttpStatus.OK);
     }
 
-<<<<<<< HEAD
 //    @PostMapping
 //    public ResponseEntity<?> insert(MultipartFile image) throws IOException {
 //        if (image != null) {
@@ -65,14 +65,9 @@ public class ImageController {
             RestfulResponse<String> response = new RestfulResponse<>("00000", "成功",
                     imageService.saveImage(image));
             return ResponseEntity.status(HttpStatus.OK).body(response);
-=======
-    @PostMapping
-    public ResponseEntity<String> insert(MultipartFile image) throws IOException {
-        if (image != null) {
-            //刪減一些東西了
-            return ResponseEntity.status(HttpStatus.OK).body(imageService.saveImage(image));
->>>>>>> parent of 3b8cb3c (update at home  at 3/10)
         }
         return null;
     }
 }
+
+

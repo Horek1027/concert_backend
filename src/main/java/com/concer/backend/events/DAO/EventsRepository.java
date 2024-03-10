@@ -16,9 +16,9 @@ import java.util.Optional;
 public interface EventsRepository extends JpaRepository<Events, Integer> {
 
     @Query("SELECT p FROM Events p WHERE p.evnetsName LIKE %:input%")
-    List<EventsResponse> searchProgramInfoByName(@Param("input") String input);
+    List<Events> searchProgramInfoByName(@Param("input") String input);
 
 //    @Query("SELECT e FROM Events e WHERE e.offSaleTime > CURRENT_TIMESTAMP ORDER BY e.shelfTime DESC")
     @Query("SELECT e FROM Events e JOIN FETCH e.area WHERE e.offSaleTime > CURRENT_TIMESTAMP ORDER BY e.shelfTime DESC")
-    List<EventsResponse> findAvailable();
+    List<Events> findAvailable();
 }
