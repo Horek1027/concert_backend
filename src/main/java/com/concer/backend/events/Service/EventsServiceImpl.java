@@ -1,5 +1,8 @@
 package com.concer.backend.events.Service;
 
+import com.concer.backend.Request.AreaAddRequest;
+import com.concer.backend.Request.EventsAddRequest;
+import com.concer.backend.Request.EventsAndAreaRequest;
 import com.concer.backend.Request.EventsRequest;
 
 import com.concer.backend.Response.EventsResponse;
@@ -7,14 +10,16 @@ import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.area.Entity.Area;
 import com.concer.backend.events.DAO.EventsRepository;
 import com.concer.backend.events.Entity.Events;
+import com.concer.backend.users.DAO.UserRepository;
+import com.concer.backend.users.Entity.Users;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 @Service
 @Transactional
@@ -22,12 +27,15 @@ public class EventsServiceImpl implements EventsService {
     @Autowired
     private EventsRepository eventsRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Override
     public RestfulResponse<Iterable<Events>> getAllEvents() {
-      List<Events> list = eventsRepository.findAll();
+        List<Events> list = eventsRepository.findAll();
 
-      RestfulResponse<Iterable<Events>> response =new RestfulResponse<>("0000","搜尋到全部資料",list);
-      return  response;
+        RestfulResponse<Iterable<Events>> response = new RestfulResponse<>("0000", "搜尋到全部資料", list);
+        return response;
     }
 
     //單一搜尋
@@ -43,7 +51,7 @@ public class EventsServiceImpl implements EventsService {
         System.out.println("前端送來的搜尋字串:" + input);
 
         List<Events> eventsList = eventsRepository.searchProgramInfoByName(input);
-        if(eventsList.isEmpty()){
+        if (eventsList.isEmpty()) {
             RestfulResponse<List<Events>> response = new RestfulResponse<>("-0001", "關鍵字查無資料", eventsList);
             return response;
 
@@ -51,25 +59,62 @@ public class EventsServiceImpl implements EventsService {
         RestfulResponse<List<Events>> response = new RestfulResponse<>("0000", "關鍵字搜尋成功", eventsList);
         return response;
     }
+    //下方Date 日期 轉字串 日期
+    public static Date stringToDate(String dataString) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        Date date = null;
+        try {
+            date = sdf.parse(dataString);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+        return date;
+    }
+    //下方轉換字串日期格式
+    public static String formatString(String dateString){
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        try{
+            Date date = sdf.parse(dateString);
+
+            SimpleDateFormat changeFormat = new SimpleDateFormat("yyyy/M/d（E）HH:mm", Locale.CHINESE);
+            changeFormat.setTimeZone(TimeZone.getTimeZone("Asia/Taipei"));
+
+            return changeFormat.format(date);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return  null;
+        }
+    }
+
 
     @Override
-    public RestfulResponse<String> insert(EventsRequest req) {
+    public RestfulResponse<String> insert(EventsAndAreaRequest req) {
+
+        System.out.println("接收到的活動表單資料: " + req.toString());
+
         if (req != null) {
+            Users creator = userRepository.findByAccount(req.getEventAddData().getAccount());
+            //我是Date格式
+            Date shelfTime = stringToDate(req.getEventAddData().getShelfTime());
+
+            Date offSalefTime = stringToDate(req.getEventAddData().getOffSaleTime());
+
             try {
                 Events events = new Events();
-                events.setUserId(req.getUserId());
-                events.setEvnetsName(req.getEvnetsName());
-                events.setEventsDetails(req.getEventsDetails());
-                events.setEventsLocation(req.getEventsLocation());
-                events.setEventsOrganizer(req.getEventsOrganizer());
-                events.setEventDate(req.getEventDate());
-                events.setShelfTime(req.getShelfTime());
-                events.setOffSaleTime(req.getOffSaleTime());
-                events.setImage1(req.getImage1());
+                events.setUserId(creator.getUserId());
+                events.setEvnetsName(req.getEventAddData().getEventsName());
+                events.setEventsDetails(req.getEventAddData().getEventsDetails());
+                events.setEventsLocation(req.getEventAddData().getEventsLocation());
+                events.setEventsOrganizer(req.getEventAddData().getEventsOrganizer());
+                events.setEventDate(formatString(req.getEventAddData().getEventDate()));
+                events.setShelfTime(shelfTime);
+                events.setOffSaleTime(offSalefTime);
+                events.setImage1(req.getEventAddData().getImage1());
 
-                //直接在Events方法裡面建立List<Area>的處理
                 List<Area> areas = new ArrayList<>();
-                for (Area data : req.getAreas()) {
+                for (AreaAddRequest data : req.getAreaAddData()) {
                     Area area = new Area();
                     area.setAreaName(data.getAreaName());
                     area.setAreaPrice(data.getAreaPrice());
@@ -77,15 +122,13 @@ public class EventsServiceImpl implements EventsService {
                     area.setEventsId(events);
                     areas.add(area);
                 }
-                //上面設定完的list放入events實體
                 events.setArea(areas);
 
                 eventsRepository.save(events);
                 System.out.println("eventsRepository已執行save");
-
-                RestfulResponse<String> response = new RestfulResponse<>("0000", "活動新增成功", "活動新增成功");
-                return response;
-
+                RestfulResponse<String> reponse = new RestfulResponse<>
+                        ("0000", "新增活動成功", "接收到前端傳來的資料，感謝飛天小女警的幫忙");
+                return reponse;
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -99,3 +142,46 @@ public class EventsServiceImpl implements EventsService {
         return responseFail;
     }
 }
+
+//            try {
+//                Events events = new Events();
+//                events.setUserId(req.getUserId());
+//                events.setEvnetsName(req.getEvnetsName());
+//                events.setEventsDetails(req.getEventsDetails());
+//                events.setEventsLocation(req.getEventsLocation());
+//                events.setEventsOrganizer(req.getEventsOrganizer());
+//                events.setEventDate(req.getEventDate());
+//                events.setShelfTime(req.getShelfTime());
+//                events.setOffSaleTime(req.getOffSaleTime());
+//                events.setImage1(req.getImage1());
+//
+//                //直接在Events方法裡面建立List<Area>的處理
+//                List<Area> areas = new ArrayList<>();
+//                for (Area data : req.getAreas()) {
+//                    Area area = new Area();
+//                    area.setAreaName(data.getAreaName());
+//                    area.setAreaPrice(data.getAreaPrice());
+//                    area.setQty(data.getQty());
+//                    area.setEventsId(events);
+//                    areas.add(area);
+//                }
+//                //上面設定完的list放入events實體
+//                events.setArea(areas);
+//
+//                eventsRepository.save(events);
+//                System.out.println("eventsRepository已執行save");
+//
+//                RestfulResponse<String> response = new RestfulResponse<>("0000", "活動新增成功", "活動新增成功");
+//                return response;
+//
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        } else {
+//            RestfulResponse<String> responseNull =
+//                    new RestfulResponse<>("-0002", "沒有收到活動參數", "沒有收到活動參數");
+//            return responseNull;
+//        }
+//        RestfulResponse<String> responseFail =
+//                new RestfulResponse<>("-0001", "活動新增失敗", "活動新增失敗");
+//        return responseFail;

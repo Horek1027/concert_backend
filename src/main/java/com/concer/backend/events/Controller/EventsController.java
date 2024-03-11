@@ -1,5 +1,8 @@
 package com.concer.backend.events.Controller;
 
+import com.concer.backend.Request.AreaAddRequest;
+import com.concer.backend.Request.EventsAddRequest;
+import com.concer.backend.Request.EventsAndAreaRequest;
 import com.concer.backend.Request.EventsRequest;
 import com.concer.backend.Response.EventsResponse;
 import com.concer.backend.Response.RestfulResponse;
@@ -27,9 +30,12 @@ public class EventsController {
     @GetMapping("/{eventsId}")
     public RestfulResponse<Events> getEvnentInfo(@PathVariable Integer eventsId) {
         Optional<Events> events = eventsService.getEventsInfo(eventsId);
-        RestfulResponse<Events> response =new RestfulResponse<Events>("0000","搜尋到全部資料",events.get());
-
-        return response;
+        if(events.isPresent()){
+            RestfulResponse<Events> response =new RestfulResponse<Events>("0000","搜尋到單筆資料",events.get());
+            return response;
+        }
+        RestfulResponse<Events> responsefail =new RestfulResponse<Events>("-0001","查無單筆資料",null);
+        return responsefail;
     }
     //使用關鍵字搜尋
     @GetMapping("/search/{input}")
@@ -39,7 +45,8 @@ public class EventsController {
 
     //新增events包含area
     @PostMapping("/add")
-    public RestfulResponse<String> insert(@RequestBody @Valid EventsRequest req){
+    public RestfulResponse<String> insert(@RequestBody @Valid EventsAndAreaRequest req){
         return eventsService.insert(req);
+
     }
 }

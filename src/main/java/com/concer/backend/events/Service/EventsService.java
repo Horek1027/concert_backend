@@ -1,5 +1,8 @@
 package com.concer.backend.events.Service;
 
+import com.concer.backend.Request.AreaAddRequest;
+import com.concer.backend.Request.EventsAddRequest;
+import com.concer.backend.Request.EventsAndAreaRequest;
 import com.concer.backend.Request.EventsRequest;
 import com.concer.backend.Response.EventsResponse;
 import com.concer.backend.Response.RestfulResponse;
@@ -9,9 +12,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface EventsService {
-    RestfulResponse<String> insert(EventsRequest req);
+    RestfulResponse<String> insert(EventsAndAreaRequest req1);
 
-    //全部搜尋
     RestfulResponse<Iterable<Events>> getAllEvents ();
 
     //單一搜尋
