@@ -1,10 +1,6 @@
 package com.concer.backend.events.Controller;
 
-import com.concer.backend.Request.AreaAddRequest;
-import com.concer.backend.Request.EventsAddRequest;
 import com.concer.backend.Request.EventsAndAreaRequest;
-import com.concer.backend.Request.EventsRequest;
-import com.concer.backend.Response.EventsResponse;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.events.Entity.Events;
 import com.concer.backend.events.Service.EventsService;

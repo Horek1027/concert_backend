@@ -27,7 +27,7 @@ SET IDENTITY_INSERT users OFF;
 -- 活動
 SET IDENTITY_INSERT events ON;
 
-INSERT INTO events(events_id, userid, events_name, events_details, events_location, events_organizer, event_date, shelf_time, offsale_time, image1)
+INSERT INTO events(events_id, user_id, events_name, events_details, events_location, events_organizer, event_date, shelf_time, offsale_time, image1)
 VALUES (
     1,
     1,

@@ -30,9 +30,9 @@ status int not null
 create table events
 (
 events_id int identity(1,1) primary key,
-userid int not null ,
+user_id int not null ,
 events_name varchar(100) not null ,
-events_details varchar(300) not null ,
+events_details varchar(3000) not null ,
 events_location varchar(100) not null,
 events_organizer varchar(50) not null ,
 event_date varchar(50) not null ,
@@ -63,6 +63,7 @@ order_area varchar(30) not null ,
 order_qty int not null ,
 order_price int not null ,
 order_date datetime not null default CURRENT_TIMESTAMP ,
+order_status int default 0,
 constraint fk_product_order_users foreign key (users_id) references users(user_id),
 constraint fk_product_order_events foreign key (events_id) references events(events_id)
 );
