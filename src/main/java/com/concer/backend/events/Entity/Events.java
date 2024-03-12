@@ -23,7 +23,7 @@ public class Events {
     @Column(name="events_id")
     private Integer eventsId;
 
-    @Column(name = "userid")
+    @Column(name = "user_id")
     private Integer userId;
 
     @Column(name = "events_name")

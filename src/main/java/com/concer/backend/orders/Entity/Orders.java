@@ -30,4 +30,6 @@ public class Orders {
     private Integer orderPrice;
     @Column(name="order_date")
     private Date orderDate;
+    @Column(name="order_status")
+    private Date order_status;
 }

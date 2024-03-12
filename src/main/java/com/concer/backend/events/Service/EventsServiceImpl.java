@@ -59,7 +59,7 @@ public class EventsServiceImpl implements EventsService {
         RestfulResponse<List<Events>> response = new RestfulResponse<>("0000", "關鍵字搜尋成功", eventsList);
         return response;
     }
-    //下方Date 日期 轉字串 日期
+    //下方Date 日期轉String 日期
     public static Date stringToDate(String dataString) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
