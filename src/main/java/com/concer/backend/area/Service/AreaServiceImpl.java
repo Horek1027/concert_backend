@@ -2,12 +2,16 @@ package com.concer.backend.area.Service;
 
 import com.concer.backend.area.DAO.AreaRepository;
 import com.concer.backend.area.Entity.Area;
+import com.concer.backend.events.Entity.Events;
+import com.concer.backend.orders.Entity.Orders;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 public class AreaServiceImpl  implements AreaService {
+    @Autowired
     private AreaRepository areaRepository;
 
     @Override
@@ -15,6 +19,17 @@ public class AreaServiceImpl  implements AreaService {
         for(Area a :areas){
             areaRepository.save(a);
         }
+    }
+
+    @Override
+    public void updateQty(Orders orders) {
+        Events events = new Events();
+        events.setEventsId(orders.getEventsId());
+
+       Area area = areaRepository.findByEventsIdAndAreaName(events,orders.getOrederArea());
+       //使用save方法進行跟新， 會把全部欄位都更新過(效率較不好)
+       area.setQty(area.getQty()-orders.getOrderQty());
+       areaRepository.save(area);
 
     }
 }

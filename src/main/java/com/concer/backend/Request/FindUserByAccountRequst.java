@@ -7,17 +7,6 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrderAddRequest {
-
+public class FindUserByAccountRequst {
     private String account;
-
-    private Integer eventsId;
-
-    private String orderArea;
-
-    private String orderQty;
-
-    private Integer orderPrice;
-
-
 }
