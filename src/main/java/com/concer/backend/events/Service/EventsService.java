@@ -19,7 +19,7 @@ public interface EventsService {
     //關鍵字搜尋
     RestfulResponse<List<Events>> wordSerchEvent(String input);
 
-    RestfulResponse<RestfulResponse> getEventsByUserId(FindUserByAccountRequst req);
+    RestfulResponse<Iterable<Events>> getEventsByUserId(FindUserByAccountRequst req);
 
 
 

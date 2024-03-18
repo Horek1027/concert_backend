@@ -141,14 +141,17 @@ public class EventsServiceImpl implements EventsService {
     }
 
     @Override
-    public RestfulResponse<RestfulResponse> getEventsByUserId(FindUserByAccountRequst req) {
+    public RestfulResponse<Iterable<Events>> getEventsByUserId(FindUserByAccountRequst req) {
         Users users = userRepository.findByAccount(req.getAccount());
-        Optional<Events> events = eventsRepository.findById(users.getUserId());
+        List<Events> events = eventsRepository.getByUserId(users.getUserId());
+        if (!events.isEmpty()){
+            RestfulResponse<Iterable<Events>> response = new RestfulResponse<>("0000","搜尋成功",events);
+            return  response;
 
+        }
+        RestfulResponse<Iterable<Events>> responseFail = new RestfulResponse<>("-0001","搜尋失敗",null);
 
-
-
-        return null;
+        return responseFail;
     }
 }
 

@@ -15,7 +15,7 @@ import java.util.Optional;
 @Repository
 public interface EventsRepository extends JpaRepository<Events, Integer> {
 
-
+    List<Events> getByUserId(Integer userId);
 
     @Query("SELECT p FROM Events p WHERE p.evnetsName LIKE %:input%")
     List<Events> searchProgramInfoByName(@Param("input") String input);

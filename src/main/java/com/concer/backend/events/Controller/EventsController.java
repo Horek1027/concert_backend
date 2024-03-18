@@ -46,8 +46,8 @@ public class EventsController {
         return eventsService.insert(req);
 
     }
-
-    public RestfulResponse<RestfulResponse> getEventsByUserId(@RequestBody FindUserByAccountRequst req){
-        return null;
+    @PostMapping("/userId")
+    public RestfulResponse<Iterable<Events>>getEventsByUserId(@RequestBody FindUserByAccountRequst req){
+        return eventsService.getEventsByUserId(req);
     }
 }
