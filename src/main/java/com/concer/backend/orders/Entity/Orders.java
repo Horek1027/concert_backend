@@ -34,7 +34,7 @@ public class Orders {
     @Column(name="order_date")
     private Date orderDate;
     @Column(name="order_status")
-    private Integer order_status;
+    private Integer orderStatus;
 
 
 

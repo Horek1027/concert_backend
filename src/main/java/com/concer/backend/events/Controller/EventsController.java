@@ -1,6 +1,7 @@
 package com.concer.backend.events.Controller;
 
 import com.concer.backend.Request.EventsAndAreaRequest;
+import com.concer.backend.Request.FindUserByAccountRequst;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.events.Entity.Events;
 import com.concer.backend.events.Service.EventsService;
@@ -44,5 +45,9 @@ public class EventsController {
     public RestfulResponse<String> insert(@RequestBody @Valid EventsAndAreaRequest req){
         return eventsService.insert(req);
 
+    }
+
+    public RestfulResponse<RestfulResponse> getEventsByUserId(@RequestBody FindUserByAccountRequst req){
+        return null;
     }
 }

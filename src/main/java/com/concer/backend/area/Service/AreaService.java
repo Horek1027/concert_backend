@@ -14,4 +14,6 @@ public interface AreaService {
 
  void updateQty (Orders orders);
 
+ void refundQty(List<Orders> orders);
+
 }

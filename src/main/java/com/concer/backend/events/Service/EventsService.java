@@ -1,9 +1,6 @@
 package com.concer.backend.events.Service;
 
-import com.concer.backend.Request.AreaAddRequest;
-import com.concer.backend.Request.EventsAddRequest;
-import com.concer.backend.Request.EventsAndAreaRequest;
-import com.concer.backend.Request.EventsRequest;
+import com.concer.backend.Request.*;
 import com.concer.backend.Response.EventsResponse;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.events.Entity.Events;
@@ -22,7 +19,7 @@ public interface EventsService {
     //關鍵字搜尋
     RestfulResponse<List<Events>> wordSerchEvent(String input);
 
-
+    RestfulResponse<RestfulResponse> getEventsByUserId(FindUserByAccountRequst req);
 
 
 

@@ -5,15 +5,18 @@ import com.concer.backend.events.Entity.Events;
 import com.concer.backend.orders.Entity.Orders;
 import org.hibernate.query.Order;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AreaRepository  extends JpaRepository<Area,Integer> {
+public interface AreaRepository extends JpaRepository<Area, Integer> {
     //使用雙條件找尋資料時就要自訂JPQL查詢
     @Query("SELECT a From Area a where a.eventsId= ?1 And a.areaName=?2")
     Area findByEventsIdAndAreaName(Events eventsId, String areaName);
 
-
+    @Modifying
+    @Query("Update Area a Set a.qty= a.qty + ?3 Where a.eventsId = ?1 And a.areaName = ?2")
+    void refundQty( Events eventsId,String areaName, Integer qty);
 
 }

@@ -30,6 +30,16 @@ public class AreaServiceImpl  implements AreaService {
        //使用save方法進行跟新， 會把全部欄位都更新過(效率較不好)
        area.setQty(area.getQty()-orders.getOrderQty());
        areaRepository.save(area);
+    }
 
+
+    @Override
+    public void refundQty(List<Orders> orders) {
+        for(Orders data : orders){
+            Events events =new Events();
+            events.setEventsId(data.getEventsId());
+            areaRepository.refundQty( events ,
+                    data.getOrederArea(), data.getOrderQty());
+        }
     }
 }

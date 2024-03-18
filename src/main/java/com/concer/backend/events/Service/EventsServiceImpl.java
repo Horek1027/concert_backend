@@ -1,9 +1,6 @@
 package com.concer.backend.events.Service;
 
-import com.concer.backend.Request.AreaAddRequest;
-import com.concer.backend.Request.EventsAddRequest;
-import com.concer.backend.Request.EventsAndAreaRequest;
-import com.concer.backend.Request.EventsRequest;
+import com.concer.backend.Request.*;
 
 import com.concer.backend.Response.EventsResponse;
 import com.concer.backend.Response.RestfulResponse;
@@ -78,7 +75,8 @@ public class EventsServiceImpl implements EventsService {
         try{
             Date date = sdf.parse(dateString);
 
-            SimpleDateFormat changeFormat = new SimpleDateFormat("yyyy/M/d（E）HH:mm", Locale.CHINESE);
+//            SimpleDateFormat changeFormat = new SimpleDateFormat("yyyy/M/d（E）HH:mm", Locale.CHINESE);
+            SimpleDateFormat changeFormat = new SimpleDateFormat("yyyy/M/d（E）HH:mm");
             changeFormat.setTimeZone(TimeZone.getTimeZone("Asia/Taipei"));
 
             return changeFormat.format(date);
@@ -141,47 +139,16 @@ public class EventsServiceImpl implements EventsService {
                 new RestfulResponse<>("-0001", "活動新增失敗", "活動新增失敗");
         return responseFail;
     }
+
+    @Override
+    public RestfulResponse<RestfulResponse> getEventsByUserId(FindUserByAccountRequst req) {
+        Users users = userRepository.findByAccount(req.getAccount());
+        Optional<Events> events = eventsRepository.findById(users.getUserId());
+
+
+
+
+        return null;
+    }
 }
 
-//            try {
-//                Events events = new Events();
-//                events.setUserId(req.getUserId());
-//                events.setEvnetsName(req.getEvnetsName());
-//                events.setEventsDetails(req.getEventsDetails());
-//                events.setEventsLocation(req.getEventsLocation());
-//                events.setEventsOrganizer(req.getEventsOrganizer());
-//                events.setEventDate(req.getEventDate());
-//                events.setShelfTime(req.getShelfTime());
-//                events.setOffSaleTime(req.getOffSaleTime());
-//                events.setImage1(req.getImage1());
-//
-//                //直接在Events方法裡面建立List<Area>的處理
-//                List<Area> areas = new ArrayList<>();
-//                for (Area data : req.getAreas()) {
-//                    Area area = new Area();
-//                    area.setAreaName(data.getAreaName());
-//                    area.setAreaPrice(data.getAreaPrice());
-//                    area.setQty(data.getQty());
-//                    area.setEventsId(events);
-//                    areas.add(area);
-//                }
-//                //上面設定完的list放入events實體
-//                events.setArea(areas);
-//
-//                eventsRepository.save(events);
-//                System.out.println("eventsRepository已執行save");
-//
-//                RestfulResponse<String> response = new RestfulResponse<>("0000", "活動新增成功", "活動新增成功");
-//                return response;
-//
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//        } else {
-//            RestfulResponse<String> responseNull =
-//                    new RestfulResponse<>("-0002", "沒有收到活動參數", "沒有收到活動參數");
-//            return responseNull;
-//        }
-//        RestfulResponse<String> responseFail =
-//                new RestfulResponse<>("-0001", "活動新增失敗", "活動新增失敗");
-//        return responseFail;

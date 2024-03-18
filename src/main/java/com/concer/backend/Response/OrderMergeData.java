@@ -1,25 +1,22 @@
 package com.concer.backend.Response;
 
-import com.concer.backend.events.Entity.Events;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Date;
-
+import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrdersResponse {
-
-    private Integer orderId;
+public class OrderMergeData {
     private Integer userId;
     private Integer eventsId;
-    private String orderArea;
-    private Integer orderQty;
-    private Integer orderPrice;
-    private Date orderDate;
-    private Integer odrderStatus;
     private String eventsName;
     private String eventsDate;
+    private Integer  totalQty;
+    private Integer totalAmount;
+    private String  createDate;
+    private Integer status;
+    private List<OrdersResponse> detail ;
+
 }

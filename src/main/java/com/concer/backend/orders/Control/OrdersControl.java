@@ -3,15 +3,14 @@ package com.concer.backend.orders.Control;
 
 import com.concer.backend.Request.FindUserByAccountRequst;
 import com.concer.backend.Request.OrderAddRequest;
+import com.concer.backend.Request.OrderCancelRequest;
+import com.concer.backend.Response.OrderMergeData;
 import com.concer.backend.Response.OrdersResponse;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.orders.Service.OrderService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -27,7 +26,11 @@ public class OrdersControl {
     }
 
     @PostMapping("/")
-    public RestfulResponse<List<OrdersResponse>> getUserOrders(@RequestBody FindUserByAccountRequst req){
+    public RestfulResponse<List<OrderMergeData>> getUserOrders(@RequestBody FindUserByAccountRequst req){
         return orderService.getUserOrders(req);
+    }
+    @PutMapping("/cancel")
+    public  RestfulResponse<String> updateStatus(@RequestBody OrderCancelRequest req){
+        return orderService.cancelOrders(req);
     }
 }
