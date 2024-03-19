@@ -7,12 +7,13 @@ import com.concer.backend.users.DAO.UserRepository;
 
 import javax.swing.text.html.Option;
 import java.util.List;
+import java.util.Optional;
 
 public interface AreaService {
 
  void insert(List<Area> areas);
 
- void updateQty (Orders orders);
+ Optional<Boolean> updateQty (Orders orders);
 
  void refundQty(List<Orders> orders);
 

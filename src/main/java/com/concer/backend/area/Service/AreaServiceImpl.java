@@ -8,37 +8,43 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
-public class AreaServiceImpl  implements AreaService {
+public class AreaServiceImpl implements AreaService {
     @Autowired
     private AreaRepository areaRepository;
 
     @Override
     public void insert(List<Area> areas) {
-        for(Area a :areas){
+        for (Area a : areas) {
             areaRepository.save(a);
         }
     }
 
     @Override
-    public void updateQty(Orders orders) {
+    public Optional<Boolean> updateQty(Orders orders) {
         Events events = new Events();
         events.setEventsId(orders.getEventsId());
 
-       Area area = areaRepository.findByEventsIdAndAreaName(events,orders.getOrederArea());
-       //使用save方法進行跟新， 會把全部欄位都更新過(效率較不好)
-       area.setQty(area.getQty()-orders.getOrderQty());
-       areaRepository.save(area);
+        Area area = areaRepository.findByEventsIdAndAreaName(events, orders.getOrederArea());
+        //使用save方法進行跟新， 會把全部欄位都更新過(效率較不好)
+        if(area.getQty() < orders.getOrderQty()){
+            return Optional.of(false);
+        }else{
+            area.setQty(area.getQty() - orders.getOrderQty());
+            areaRepository.save(area);
+        }
+        return Optional.of(true);
     }
 
 
     @Override
     public void refundQty(List<Orders> orders) {
-        for(Orders data : orders){
-            Events events =new Events();
+        for (Orders data : orders) {
+            Events events = new Events();
             events.setEventsId(data.getEventsId());
-            areaRepository.refundQty( events ,
+            areaRepository.refundQty(events,
                     data.getOrederArea(), data.getOrderQty());
         }
     }

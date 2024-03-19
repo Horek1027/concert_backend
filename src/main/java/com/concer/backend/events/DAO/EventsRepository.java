@@ -17,7 +17,7 @@ public interface EventsRepository extends JpaRepository<Events, Integer> {
 
     List<Events> getByUserId(Integer userId);
 
-    @Query("SELECT p FROM Events p WHERE p.evnetsName LIKE %:input%")
+    @Query("SELECT p FROM Events p WHERE p.eventsName LIKE %:input%")
     List<Events> searchProgramInfoByName(@Param("input") String input);
 
 //    @Query("SELECT e FROM Events e WHERE e.offSaleTime > CURRENT_TIMESTAMP ORDER BY e.shelfTime DESC")

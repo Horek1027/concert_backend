@@ -20,10 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,11 +55,21 @@ public class OrderServiceImpl implements OrderService {
                     order.setOrderDate(new Date());
                     order.setOrderStatus(0);
                     System.out.println("裝箱完的Order資料:" + order);
+
+
+                    Optional<Boolean>result=areaService.updateQty(order);//確認座位是否足夠，並減少
+                    // isPresent()判斷是否包含值有值true,沒有值false,
+                    // get()正常來講有值 or true 回傳 true ,其他回傳False
+                    if (result.isPresent() && !result.get()){
+                        RestfulResponse<String> res = new RestfulResponse<>("-0002", "失敗", "座位數量不足");
+                        return res;
+                    }
+                    System.out.println("save Order 有執行");
                     ordersRepository.save(order);
-                    areaService.updateQty(order);//訂單成立後要減少座位數量
                 } else {
                     System.out.println("找不到user資料");
                 }
+
             }
             RestfulResponse<String> response = new RestfulResponse<>("0000", "成功", "接收到後端的資料");
             return response;
@@ -109,7 +116,7 @@ public class OrderServiceImpl implements OrderService {
                 // 將訂單數據添加到 detail 中
                 List<OrdersResponse> orderList = ordersForEventsId.stream().map(order -> {
                     Events event = eventsRepository.findById(order.getEventsId()).orElse(null);
-                    String eventName = (event != null) ? event.getEvnetsName() : "";
+                    String eventName = (event != null) ? event.getEventsName() : "";
                     String evnetDate = (event != null) ? event.getEventDate() : "";
                     return new OrdersResponse(
                             order.getOrderId(), order.getEventsId(), order.getUserId(),

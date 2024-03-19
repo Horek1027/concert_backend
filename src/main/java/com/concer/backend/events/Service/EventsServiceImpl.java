@@ -102,7 +102,7 @@ public class EventsServiceImpl implements EventsService {
             try {
                 Events events = new Events();
                 events.setUserId(creator.getUserId());
-                events.setEvnetsName(req.getEventAddData().getEventsName());
+                events.setEventsName(req.getEventAddData().getEventsName());
                 events.setEventsDetails(req.getEventAddData().getEventsDetails());
                 events.setEventsLocation(req.getEventAddData().getEventsLocation());
                 events.setEventsOrganizer(req.getEventAddData().getEventsOrganizer());
