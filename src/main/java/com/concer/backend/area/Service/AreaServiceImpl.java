@@ -1,5 +1,6 @@
 package com.concer.backend.area.Service;
 
+import com.concer.backend.Request.OrderAddRequest;
 import com.concer.backend.area.DAO.AreaRepository;
 import com.concer.backend.area.Entity.Area;
 import com.concer.backend.events.Entity.Events;
@@ -23,20 +24,31 @@ public class AreaServiceImpl implements AreaService {
     }
 
     @Override
-    public Optional<Boolean> updateQty(Orders orders) {
+    public Optional<Boolean> checkQty(List<OrderAddRequest> req) {
+        for(OrderAddRequest data:req){
+            Events events = new Events();
+            events.setEventsId(data.getEventsId());
+            Area area = areaRepository.findByEventsIdAndAreaName(events, data.getOrderArea());
+            //使用save方法進行跟新， 會把全部欄位都更新過(效率較不好)
+            if(area.getQty() < Integer.parseInt(data.getOrderQty())){
+                return Optional.of(false);
+            }
+        }
+        return Optional.of(true);
+    }
+
+    @Override
+    public void updateQty(Orders orders) {
         Events events = new Events();
         events.setEventsId(orders.getEventsId());
 
         Area area = areaRepository.findByEventsIdAndAreaName(events, orders.getOrederArea());
         //使用save方法進行跟新， 會把全部欄位都更新過(效率較不好)
-        if(area.getQty() < orders.getOrderQty()){
-            return Optional.of(false);
-        }else{
-            area.setQty(area.getQty() - orders.getOrderQty());
-            areaRepository.save(area);
-        }
-        return Optional.of(true);
+
+        area.setQty(area.getQty() - orders.getOrderQty());
+        areaRepository.save(area);
     }
+
 
 
     @Override

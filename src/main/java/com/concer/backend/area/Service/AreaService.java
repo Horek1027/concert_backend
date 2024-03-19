@@ -1,5 +1,6 @@
 package com.concer.backend.area.Service;
 
+import com.concer.backend.Request.OrderAddRequest;
 import com.concer.backend.area.DAO.AreaRepository;
 import com.concer.backend.area.Entity.Area;
 import com.concer.backend.orders.Entity.Orders;
@@ -13,8 +14,9 @@ public interface AreaService {
 
  void insert(List<Area> areas);
 
- Optional<Boolean> updateQty (Orders orders);
+ void updateQty (Orders orders);
 
  void refundQty(List<Orders> orders);
 
+ Optional<Boolean> checkQty(List<OrderAddRequest> req);
 }

@@ -41,6 +41,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     public RestfulResponse<String> insert(List<OrderAddRequest> req) {
+   
+        Optional<Boolean>result = areaService.checkQty(req);//確認座位是否足夠，並減少
+        // isPresent()判斷是否包含值有值true,沒有值false,
+        // get()正常來講有值 or true 回傳 true ,其他回傳False
+        if (result.isPresent() && !result.get()){
+            RestfulResponse<String> res = new RestfulResponse<>("-0002", "失敗", "有座位數量不足");
+            return res;
+        }
         if (req != null && !req.isEmpty()) {
             for (OrderAddRequest data : req) {
                 System.out.println("Received request: " + data.toString());
@@ -56,27 +64,19 @@ public class OrderServiceImpl implements OrderService {
                     order.setOrderStatus(0);
                     System.out.println("裝箱完的Order資料:" + order);
 
+                    areaService.updateQty(order);//減少 areaQty
 
-                    Optional<Boolean>result=areaService.updateQty(order);//確認座位是否足夠，並減少
-                    // isPresent()判斷是否包含值有值true,沒有值false,
-                    // get()正常來講有值 or true 回傳 true ,其他回傳False
-                    if (result.isPresent() && !result.get()){
-                        RestfulResponse<String> res = new RestfulResponse<>("-0002", "失敗", "座位數量不足");
-                        return res;
-                    }
                     System.out.println("save Order 有執行");
                     ordersRepository.save(order);
                 } else {
                     System.out.println("找不到user資料");
                 }
-
             }
             RestfulResponse<String> response = new RestfulResponse<>("0000", "成功", "接收到後端的資料");
             return response;
-        } else {
+        }
             RestfulResponse<String> responseFail = new RestfulResponse<>("-0001", "失敗", "後端收到不正確資料");
             return responseFail;
-        }
     }
 
     @Override
