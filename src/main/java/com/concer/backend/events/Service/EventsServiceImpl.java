@@ -49,11 +49,13 @@ public class EventsServiceImpl implements EventsService {
 
         List<Events> eventsList = eventsRepository.searchProgramInfoByName(input);
         if (eventsList.isEmpty()) {
-            RestfulResponse<List<Events>> response = new RestfulResponse<>("-0001", "關鍵字查無資料", eventsList);
+            RestfulResponse<List<Events>> response = new RestfulResponse<>
+                    ("-0001", "關鍵字查無資料", eventsList);
             return response;
 
         }
-        RestfulResponse<List<Events>> response = new RestfulResponse<>("0000", "關鍵字搜尋成功", eventsList);
+        RestfulResponse<List<Events>> response = new RestfulResponse<>
+                ("0000", "關鍵字搜尋成功", eventsList);
         return response;
     }
     //下方Date 日期轉String 日期
@@ -76,7 +78,7 @@ public class EventsServiceImpl implements EventsService {
             Date date = sdf.parse(dateString);
 
 //            SimpleDateFormat changeFormat = new SimpleDateFormat("yyyy/M/d（E）HH:mm", Locale.CHINESE);
-            SimpleDateFormat changeFormat = new SimpleDateFormat("yyyy/M/d（E）HH:mm");
+            SimpleDateFormat changeFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
             changeFormat.setTimeZone(TimeZone.getTimeZone("Asia/Taipei"));
 
             return changeFormat.format(date);

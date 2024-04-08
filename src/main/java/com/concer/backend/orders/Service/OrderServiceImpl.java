@@ -64,10 +64,13 @@ public class OrderServiceImpl implements OrderService {
                     order.setOrderStatus(0);
                     System.out.println("裝箱完的Order資料:" + order);
 
-                    areaService.updateQty(order);//減少 areaQty
+                    try{
+                        areaService.updateQty(order);//減少 areaQty
+                        ordersRepository.save(order);
+                    }catch (Exception e){
 
-                    System.out.println("save Order 有執行");
-                    ordersRepository.save(order);
+                    }
+
                 } else {
                     System.out.println("找不到user資料");
                 }
