@@ -1,26 +1,22 @@
 package com.concer.backend.events.Service;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.TimeZone;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.concer.backend.Request.AreaAddRequest;
 import com.concer.backend.Request.EventsAndAreaRequest;
 import com.concer.backend.Request.FindUserByAccountRequst;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.area.Entity.Area;
 import com.concer.backend.events.DAO.EventsRepository;
+import com.concer.backend.area.DAO.AreaRepository;
 import com.concer.backend.events.Entity.Events;
 import com.concer.backend.users.DAO.UserRepository;
 import com.concer.backend.users.Entity.Users;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 @Service
 @Transactional
@@ -30,6 +26,9 @@ public class EventsServiceImpl implements EventsService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AreaRepository areaRepository;
 
     @Override
     public RestfulResponse<Iterable<Events>> getAllEvents() {
@@ -126,8 +125,9 @@ public class EventsServiceImpl implements EventsService {
                     area.setEventsId(events);
                     areas.add(area);
                 }
-                events.setArea(areas);
+//                events.setArea(areas);
 
+                areaRepository.saveAll(areas);
                 eventsRepository.save(events);
                 System.out.println("eventsRepository已執行save");
                 RestfulResponse<String> reponse = new RestfulResponse<>("0000", "新增活動成功", "接收到前端傳來的資料，感謝飛天小女警的幫忙");

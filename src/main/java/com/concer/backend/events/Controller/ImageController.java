@@ -61,11 +61,19 @@ public class ImageController {
 //    }
     @PostMapping
     public ResponseEntity<RestfulResponse<?>> insert(MultipartFile image) throws IOException {
+
+        if (image == null){
+            log.info("image == null)");
+        }
+
         if (image != null) {
             RestfulResponse<String> response = new RestfulResponse<>("00000", "成功",
                     imageService.saveImage(image));
+            log.info("圖片新增成功");
             return ResponseEntity.status(HttpStatus.OK).body(response);
+
         }
+        log.info("圖片新增失敗");
         return null;
     }
 }
