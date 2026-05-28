@@ -8,16 +8,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderAddRequest {
-
     private String account;
-
     private Integer eventsId;
-
     private String orderArea;
-
     private String orderQty;
-
     private Integer orderPrice;
-
 
 }

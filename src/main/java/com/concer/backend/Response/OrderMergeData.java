@@ -13,7 +13,7 @@ public class OrderMergeData {
     private Integer eventsId;
     private String eventsName;
     private String eventsDate;
-    private Integer  totalQty;
+    private Integer totalQty;
     private Integer totalAmount;
     private String  createDate;
     private Integer status;

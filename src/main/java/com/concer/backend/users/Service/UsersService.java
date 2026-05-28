@@ -8,6 +8,7 @@ import com.concer.backend.Response.UsersLoginResponse;
 
 
 import com.concer.backend.users.Entity.Users;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +24,14 @@ public interface UsersService {
     List<Users> getAllUsers();
 
     RestfulResponse<UsersLoginResponse> login(UsersLoginRequest req);
+
+     RestfulResponse<UsersLoginResponse> loginForSmallToken(UsersLoginRequest req) ;
+
+    RestfulResponse<Void> logout();
+    RestfulResponse<String> forceLogout(String account);
+
+
+    RestfulResponse<UsersLoginResponse> validateToken(HttpServletRequest request);
 
     RestfulResponse<UsersLoginResponse> validateToken(UsersTokenRequest req);
 

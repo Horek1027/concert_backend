@@ -16,11 +16,13 @@ import java.util.Optional;
 public interface EventsRepository extends JpaRepository<Events, Integer> {
 
     List<Events> getByUserId(Integer userId);
-
+    //透過 JOIN FETCH，把 Events 連同肚子裡的 Area 一次查出來，SQL 執行次數會從 N+1 降為永遠的 1 次
+    @Query("SELECT DISTINCT e FROM Events e LEFT JOIN FETCH e.area")
+    List<Events> findAllWithArea();
     @Query("SELECT p FROM Events p WHERE p.eventsName LIKE %:input%")
     List<Events> searchProgramInfoByName(@Param("input") String input);
 
-//    @Query("SELECT e FROM Events e WHERE e.offSaleTime > CURRENT_TIMESTAMP ORDER BY e.shelfTime DESC")
+    //只找出販售中的活動
     @Query("SELECT e FROM Events e JOIN FETCH e.area WHERE e.offSaleTime > CURRENT_TIMESTAMP ORDER BY e.shelfTime DESC")
     List<Events> findAvailable();
 }

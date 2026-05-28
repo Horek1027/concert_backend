@@ -11,7 +11,6 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrdersResponse {
-
     private Integer orderId;
     private Integer userId;
     private Integer eventsId;
@@ -19,7 +18,7 @@ public class OrdersResponse {
     private Integer orderQty;
     private Integer orderPrice;
     private Date orderDate;
-    private Integer odrderStatus;
+    private Integer orderStatus;
     private String eventsName;
     private String eventsDate;
 }

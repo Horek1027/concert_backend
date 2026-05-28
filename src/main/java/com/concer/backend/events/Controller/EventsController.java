@@ -39,12 +39,10 @@ public class EventsController {
     public RestfulResponse<List<Events>> wordSerchEvent(@PathVariable String input){
         return  eventsService.wordSerchEvent(input);
     }
-
     //新增events包含area
     @PostMapping("/add")
     public RestfulResponse<String> insert(@RequestBody @Valid EventsAndAreaRequest req){
         return eventsService.insert(req);
-
     }
     @PostMapping("/userId")
     public RestfulResponse<Iterable<Events>>getEventsByUserId(@RequestBody FindUserByAccountRequst req){

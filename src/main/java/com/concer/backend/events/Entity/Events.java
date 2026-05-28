@@ -50,22 +50,21 @@ public class Events {
     @Column(name = "image1")
     private String image1;
 
+    //取消table的FK關聯還是可以使用下方設定
+    @OneToMany(mappedBy = "eventsId",//連結的欄位名稱
+            fetch=FetchType.LAZY,
+            //除了remove都要附加
+            cascade = { CascadeType.MERGE,
+                    CascadeType.REFRESH ,CascadeType.PERSIST})
+    @JsonManagedReference
+    private List<Area> area;
 
-    //取消fk的作法用各自的insert
-//    @OneToMany(mappedBy = "eventsId",//連結的欄位名稱
-//            fetch=FetchType.LAZY,
-//            //除了remove都要附加
-//            cascade = { CascadeType.MERGE,CascadeType.MERGE,
-//                    CascadeType.REFRESH ,CascadeType.PERSIST})
-//    @JsonManagedReference
-//    private List<Area> area;
-//
-//    /*在OneToMany的Entiy新增，ManyToOne的add方法
-//    * 方便新增Events的時候一起新增area同時做連結*/
-//    public void add(Area tempArea){
-//        if(area == null){
-//            area = new ArrayList<>();
-//        }
-//        area.add(tempArea);
-//    }
+    /*在OneToMany的Entiy新增，ManyToOne的add方法
+    * 方便新增Events的時候一起新增area同時做連結*/
+    public void add(Area tempArea){
+        if(area == null){
+            area = new ArrayList<>();
+        }
+        area.add(tempArea);
+    }
 }

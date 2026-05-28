@@ -92,6 +92,22 @@
 		</dependency>
 		<!-- jWT 區域 結束 -->
 
+		<!--引入 Spring 官方 Data Redis 依賴-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<!--引入 Spring 官方 Data Redis 結束-->
+
+		<!--引入 selenium-java 依賴,4.6之後內建了 Selenium Manager,它會自動偵測你電腦的瀏覽器版本並自動下載對應的驅動-->
+		<dependency>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>selenium-java</artifactId>
+			<version>4.21.0</version> <scope>test</scope>
+		</dependency>
+		<!--引入 selenium-java 依賴 結束-->
+
+
 	</dependencies>
 
 	<build>

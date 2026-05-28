@@ -25,7 +25,7 @@ public class Orders {
     @Column(name = "events_id" )
     private Integer eventsId;
     @Column(name="order_area")
-    private String orederArea;
+    private String orderArea;
     @Column(name="order_qty")
     private Integer orderQty;
     @Column(name="order_price")

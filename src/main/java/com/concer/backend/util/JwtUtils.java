@@ -17,18 +17,29 @@ public class JwtUtils {
     private static final long EXPIRE_TIME = 10 * 60 * 1000;
 
     /**
-     * 產生 Token
+     * 版本 A：一般短效 AccessToken 使用（不特別指定 JTI）
      */
-    public static String createJwtToken(String account, Long userId) {
+    public static String createJwtToken(String account, Long userId, long expireTimeMillis) {
+        return createJwtToken(account, userId, null, expireTimeMillis);
+    }
+    /**
+     * 版本 B：長效 RefreshToken 使用（支援傳入 JTI 供 Redis 追蹤）
+     */
+    public static String createJwtToken(String account, Long userId, String jti, long expireTime) {
         long now = System.currentTimeMillis();
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
 
+        // 🌟 核心修改：如果後端有傳入 jti，就放進標準的 Claims 欄位中
+        if (jti != null && !jti.isEmpty()) {
+            claims.put(Claims.ID, jti); // Claims.ID 的實際值就是 "jti"
+        }
+
         return Jwts.builder()
-                .setClaims(claims)              // 放入自定義資訊
+                .setClaims(claims)              // 放入自定義資訊（包含 userId 與選填的 jti）
                 .setSubject(account)            // 放入帳號作為主體
                 .setIssuedAt(new Date(now))     // 簽發時間
-                .setExpiration(new Date(now + EXPIRE_TIME)) // 設定 10 分鐘後過期
+                .setExpiration(new Date(now + expireTime))
                 .signWith(SIGNING_KEY, SignatureAlgorithm.HS256)
                 .compact();
     }

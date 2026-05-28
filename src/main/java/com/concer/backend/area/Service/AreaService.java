@@ -14,9 +14,9 @@ public interface AreaService {
 
  void insert(List<Area> areas);
 
- void updateQty (Orders orders);
+ void updateQty (List<Orders> orders);
 
  void refundQty(List<Orders> orders);
 
- Optional<Boolean> checkQty(List<OrderAddRequest> req);
+ boolean checkQty(List<OrderAddRequest> req);
 }

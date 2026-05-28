@@ -2,12 +2,11 @@ package com.concer.backend.events.Service;
 
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
@@ -19,21 +18,28 @@ public class ImageServiceImpl implements ImageService {
     private String imageDirectory;
 
     @Override
-    public byte[] getImage(String imageName) throws IOException {
-        byte[] imageBytes = null;
-
+    public Resource getImage(String imageName) throws IOException {
         File imageFile = new File(imageDirectory + imageName);
         System.out.println("這是imageFile的路徑:" + imageFile);
-        BufferedImage image = ImageIO.read(imageFile);
-//取得文件副檔名
-        String fileExtension = imageName.substring(imageName.lastIndexOf(".") + 1);
-        String formatName = getFormatName(fileExtension);
+        return new FileSystemResource(imageFile);
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(image, formatName, baos);
-        imageBytes = baos.toByteArray();
 
-        return imageBytes;
+
+//      下方舊版 Byte[] 寫法
+//        byte[] imageBytes = null;
+//        File imageFile = new File(imageDirectory + imageName);
+//
+//        System.out.println("這是imageFile的路徑:" + imageFile);
+//        BufferedImage image = ImageIO.read(imageFile);
+//        //取得文件副檔名
+//        String fileExtension = imageName.substring(imageName.lastIndexOf(".") + 1);
+//        String formatName = getFormatName(fileExtension);
+//
+//        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//        ImageIO.write(image, formatName, baos);
+//        imageBytes = baos.toByteArray();
+//
+//        return imageBytes;
     }
 
     @Override

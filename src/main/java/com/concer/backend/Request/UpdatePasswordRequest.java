@@ -11,5 +11,4 @@ public class UpdatePasswordRequest {
     private String account;
     private String password;
     private String newPassword;
-
 }

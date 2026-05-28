@@ -4,12 +4,14 @@ import com.concer.backend.Request.AreaAddRequest;
 import com.concer.backend.Request.EventsAndAreaRequest;
 import com.concer.backend.Request.FindUserByAccountRequst;
 import com.concer.backend.Response.RestfulResponse;
+import com.concer.backend.area.DAO.AreaRepository;
 import com.concer.backend.area.Entity.Area;
 import com.concer.backend.events.DAO.EventsRepository;
-import com.concer.backend.area.DAO.AreaRepository;
 import com.concer.backend.events.Entity.Events;
 import com.concer.backend.users.DAO.UserRepository;
 import com.concer.backend.users.Entity.Users;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.NullValueInNestedPathException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import java.util.*;
 
 @Service
 @Transactional
+@Slf4j
 public class EventsServiceImpl implements EventsService {
     @Autowired
     private EventsRepository eventsRepository;
@@ -32,10 +35,8 @@ public class EventsServiceImpl implements EventsService {
 
     @Override
     public RestfulResponse<Iterable<Events>> getAllEvents() {
-        List<Events> list = eventsRepository.findAll();
-
-        RestfulResponse<Iterable<Events>> response = new RestfulResponse<>("0000", "搜尋到全部資料", list);
-        return response;
+        List<Events> list = eventsRepository.findAllWithArea();
+        return new RestfulResponse<>("0000", "搜尋到全部資料", list);
     }
 
     // 單一搜尋
@@ -52,12 +53,9 @@ public class EventsServiceImpl implements EventsService {
 
         List<Events> eventsList = eventsRepository.searchProgramInfoByName(input);
         if (eventsList.isEmpty()) {
-            RestfulResponse<List<Events>> response = new RestfulResponse<>("-0001", "關鍵字查無資料", eventsList);
-            return response;
-
+            return new RestfulResponse<>("-0001", "關鍵字查無資料", eventsList);
         }
-        RestfulResponse<List<Events>> response = new RestfulResponse<>("0000", "關鍵字搜尋成功", eventsList);
-        return response;
+        return new RestfulResponse<>("0000", "關鍵字搜尋成功", eventsList);
     }
 
     // 下方Date 日期轉String 日期
@@ -87,57 +85,58 @@ public class EventsServiceImpl implements EventsService {
 
             return changeFormat.format(date);
         } catch (ParseException e) {
-            e.printStackTrace();
+            log.error("發生錯誤", e);
             return null;
         }
     }
 
     @Override
+    @Transactional //新增涉及多張 Table一定要加
     public RestfulResponse<String> insert(EventsAndAreaRequest req) {
-
         System.out.println("接收到的活動表單資料: " + req.toString());
+        Users creator = userRepository.findByAccount(req.getEventAddData().getAccount());
+        if (creator == null) {
+            return new RestfulResponse<>("-0001", "活動新增失敗", "該會員帳號不存在");
+        }
 
-        if (req != null) {
-            Users creator = userRepository.findByAccount(req.getEventAddData().getAccount());
-            // 我是Date格式
+        try {
+            // 我是Date格式轉換
             Date shelfTime = stringToDate(req.getEventAddData().getShelfTime());
-
             Date offSalefTime = stringToDate(req.getEventAddData().getOffSaleTime());
 
-            try {
-                Events events = new Events();
-                events.setUserId(creator.getUserId());
-                events.setEventsName(req.getEventAddData().getEventsName());
-                events.setEventsDetails(req.getEventAddData().getEventsDetails());
-                events.setEventsLocation(req.getEventAddData().getEventsLocation());
-                events.setEventsOrganizer(req.getEventAddData().getEventsOrganizer());
-                events.setEventDate(formatString(req.getEventAddData().getEventDate()));
-                events.setShelfTime(shelfTime);
-                events.setOffSaleTime(offSalefTime);
-                events.setImage1(req.getEventAddData().getImage1());
+            Events events = new Events();
+            events.setUserId(creator.getUserId());
+            events.setEventsName(req.getEventAddData().getEventsName());
+            events.setEventsDetails(req.getEventAddData().getEventsDetails());
+            events.setEventsLocation(req.getEventAddData().getEventsLocation());
+            events.setEventsOrganizer(req.getEventAddData().getEventsOrganizer());
+            events.setEventDate(formatString(req.getEventAddData().getEventDate()));
+            events.setShelfTime(shelfTime);
+            events.setOffSaleTime(offSalefTime);
+            events.setImage1(req.getEventAddData().getImage1());
 
-                List<Area> areas = new ArrayList<>();
-                for (AreaAddRequest data : req.getAreaAddData()) {
-                    Area area = new Area();
-                    area.setAreaName(data.getAreaName());
-                    area.setAreaPrice(data.getAreaPrice());
-                    area.setQty(data.getQty());
-                    area.setEventsId(events);
-                    areas.add(area);
-                }
-//                events.setArea(areas);
-
-                areaRepository.saveAll(areas);
-                eventsRepository.save(events);
-                System.out.println("eventsRepository已執行save");
-                RestfulResponse<String> reponse = new RestfulResponse<>("0000", "新增活動成功", "接收到前端傳來的資料，感謝飛天小女警的幫忙");
-                return reponse;
-            } catch (Exception e) {
-                e.printStackTrace();
+            List<Area> areas = new ArrayList<>();
+            for (AreaAddRequest data : req.getAreaAddData()) {
+                Area area = new Area();
+                area.setAreaName(data.getAreaName());
+                area.setAreaPrice(data.getAreaPrice());
+                area.setQty(data.getQty());
+                area.setEventsId(events);
+                areas.add(area);
             }
+            events.setArea(areas);
+            eventsRepository.save(events);
+            System.out.println("eventsRepository已執行save");
+            return new RestfulResponse<>("0000", "新增活動成功", null);
+        } catch (NullValueInNestedPathException nullMessage) {
+//            BeanUtils.getProperty(req, "eventAddData.eventsName")。如果中間的物件存在，
+//            但目標字串反射失敗，或者中間某個自訂物件在轉換過程中斷掉了，就會噴出這個異常。
+            log.warn("請求資料中包含未預期的空路徑: ", nullMessage);
+            return new RestfulResponse<>("-0001", "req 資料有空值", null);
+        } catch (Exception e) {
+            log.error("新增活動時發生系統未預期錯誤: ", e);
+            return new RestfulResponse<>("-0001", "活動新增失敗", "活動新增失敗");
         }
-        RestfulResponse<String> responseFail = new RestfulResponse<>("-0001", "活動新增失敗", "活動新增失敗");
-        return responseFail;
     }
 
     @Override
@@ -145,12 +144,8 @@ public class EventsServiceImpl implements EventsService {
         Users users = userRepository.findByAccount(req.getAccount());
         List<Events> events = eventsRepository.getByUserId(users.getUserId());
         if (!events.isEmpty()) {
-            RestfulResponse<Iterable<Events>> response = new RestfulResponse<>("0000", "搜尋成功", events);
-            return response;
-
+            return new RestfulResponse<>("0000", "搜尋成功", events);
         }
-        RestfulResponse<Iterable<Events>> responseFail = new RestfulResponse<>("-0001", "搜尋失敗", null);
-
-        return responseFail;
+        return  new RestfulResponse<>("-0001", "搜尋失敗", null);
     }
 }
