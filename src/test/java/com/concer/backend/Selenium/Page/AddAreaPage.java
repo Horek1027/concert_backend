@@ -61,6 +61,4 @@ public class AddAreaPage {
         qtyInput.clear();
         qtyInput.sendKeys(dto.getQty());
     }
-
-
 }

@@ -7,19 +7,20 @@ import com.concer.backend.Request.EventsAndAreaRequest;
 import com.concer.backend.Request.FindUserByAccountRequst;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.events.Entity.Events;
+import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsEntity;
 
 public interface EventsService {
     RestfulResponse<String> insert(EventsAndAreaRequest req1);
 
-    RestfulResponse<Iterable<Events>> getAllEvents ();
+    RestfulResponse<Iterable<MyBatisPlusEventsEntity>> getAllEvents ();
 
     //單一搜尋
-    Optional<Events> getEventsInfo (Integer eventsId);
+    Optional<MyBatisPlusEventsEntity> getEventsInfo (Integer eventsId);
 
     //關鍵字搜尋
-    RestfulResponse<List<Events>> wordSerchEvent(String input);
+    RestfulResponse<List<MyBatisPlusEventsEntity>> wordSerchEvent(String input);
 
-    RestfulResponse<Iterable<Events>> getEventsByUserId(FindUserByAccountRequst req);
+    RestfulResponse<Iterable<MyBatisPlusEventsEntity>> getEventsByUserId(FindUserByAccountRequst req);
 
 
 

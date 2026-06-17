@@ -73,20 +73,27 @@ public class ImageController {
 //    }
     @PostMapping
     public ResponseEntity<RestfulResponse<?>> insert(MultipartFile image) throws IOException {
+        //限制圖片大小
+        long maxSize = 2 * 1024 * 1024; // 2MB
 
         if (image == null){
             log.info("image == null)");
         }
+        if (image.getSize() > maxSize) {
+            RestfulResponse<String> response = new RestfulResponse<>("-0001", "失敗", "檔案不能超過2MB");
+           return ResponseEntity.status(HttpStatus.OK).body(response);
+        }
 
-        if (image != null) {
-            RestfulResponse<String> response = new RestfulResponse<>("00000", "成功",
+        try{
+            RestfulResponse<String> response = new RestfulResponse<>("0000", "成功",
                     imageService.saveImage(image));
             log.info("圖片新增成功");
             return ResponseEntity.status(HttpStatus.OK).body(response);
-
+        } catch (Exception e){
+            log.error("儲存圖片失敗:{}",e);
         }
-        log.info("圖片新增失敗");
-        return null;
+        RestfulResponse<String> response = new RestfulResponse<>("-0099", "系統錯誤", "伺服器忙碌中，請稍後再試或聯絡管理員");
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }
 

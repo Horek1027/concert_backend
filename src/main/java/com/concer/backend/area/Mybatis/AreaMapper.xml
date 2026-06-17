@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.concer.backend.area.Mybatis.AreaMapper">
+    <resultMap id="areaMap" type="com.concer.backend.area.Entity.Area">
+        <id property="areaId" column="area_id"/>
+        <result property="eventsId" column="events_id"/>
+        <result property="areaName" column="area_name"/>
+        <result property="areaPrice" column="area_price"/>
+        <result property="qty" column="qty"/>
+    </resultMap>
+  <!--  MyBatis 的 <update> 方法如果回傳型別是 int，MyBatis 會把
+  JDBC executeUpdate() 回傳的 affected rows 傳回來。 -->
+    <update id="checkAndUpdateQty">
+        UPDATE area a
+        JOIN (
+        <foreach collection="orders" item="order" separator=" UNION ALL ">
+            SELECT
+            #{order.eventsId} AS events_id,
+            #{order.orderArea} AS area_name,
+            #{order.orderQty} AS order_qty
+        </foreach>
+        ) o
+        ON a.events_id = o.events_id
+        AND a.area_name = o.area_name
+        SET a.qty = a.qty - o.order_qty
+        WHERE a.qty >= o.order_qty
+    </update>
+</mapper>

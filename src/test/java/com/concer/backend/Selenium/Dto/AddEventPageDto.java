@@ -6,7 +6,6 @@ import lombok.Data;
 @Data
 @Builder
 public class AddEventPageDto {
-
     private String fileUploadInput;
     private String eventName;
     private String host;
@@ -15,7 +14,4 @@ public class AddEventPageDto {
     private String shelfTimeDate;
     private String offTimeDate;
     private String eventDetail;
-
-
-
 }

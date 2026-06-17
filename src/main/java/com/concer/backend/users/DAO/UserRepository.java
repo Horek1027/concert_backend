@@ -11,8 +11,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface UserRepository extends JpaRepository<Users,Integer> {
     Users findByAccount(String account);
-
-
     @Modifying
     @Query("Update Users u set  u.nickname =:nickname , u.email=:email , " +
             "u.cellphone=:cellphone where u.account=:account")

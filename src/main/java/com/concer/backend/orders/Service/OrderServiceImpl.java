@@ -1,5 +1,8 @@
 package com.concer.backend.orders.Service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.concer.backend.Request.FindUserByAccountRequst;
 import com.concer.backend.Request.OrderAddRequest;
 import com.concer.backend.Request.OrderCancelRequest;
@@ -8,170 +11,364 @@ import com.concer.backend.Response.OrdersResponse;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.area.Service.AreaService;
 import com.concer.backend.events.DAO.EventsRepository;
-import com.concer.backend.events.Entity.Events;
-import com.concer.backend.orders.DAO.OrdersRepository;
-import com.concer.backend.orders.Entity.Orders;
-import com.concer.backend.users.DAO.UserRepository;
-import com.concer.backend.users.Entity.Users;
+import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsEntity;
+import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsMapper;
+import com.concer.backend.kafka.DTO.ReserveRequest;
+import com.concer.backend.kafka.Event.OrderCreatedEvent;
+import com.concer.backend.kafka.KafkaTopics;
+import com.concer.backend.kafka.OrderKafkaProducer;
+import com.concer.backend.orders.Entity.OrderStatus;
+import com.concer.backend.orders.MyBatisPlus.MyBatisPlusOrdersEntity;
+import com.concer.backend.orders.MyBatisPlus.MyBatisPlusOrdersMapper;
+import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersEntity;
+import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @Transactional
 @Slf4j
-public class OrderServiceImpl implements OrderService {
-    private UserRepository userRepository;
-    private OrdersRepository ordersRepository;
-    private AreaService areaService;
-    private EventsRepository eventsRepository;
+@RequiredArgsConstructor
+public class OrderServiceImpl
+        extends ServiceImpl<MyBatisPlusOrdersMapper, MyBatisPlusOrdersEntity>
+        implements OrderService {
 
-    @Autowired
-    public OrderServiceImpl(UserRepository userRepository, OrdersRepository ordersRepository
-            , AreaService areaService, EventsRepository eventsRepository) {
-        this.ordersRepository = ordersRepository;
-        this.userRepository = userRepository;
-        this.areaService = areaService;
-        this.eventsRepository = eventsRepository;
-    }
-    @Override
-    @Transactional
-    public RestfulResponse<String> insert(List<OrderAddRequest> req) {
-        Date orderDate = new Date();
-        if (req == null || req.isEmpty()) {
-            return new RestfulResponse<>("-0001", "失敗", "req是空值");
-        }
+    private final AreaService areaService;
+    //private final UserRepository userRepository;
+//    private final OrdersRepository ordersRepository;
+    private final EventsRepository eventsRepository;
+    private final MyBatisPlusUsersMapper myBatisPlusUsersMapper;
+    private final MyBatisPlusOrdersMapper myBatisPlusOrdersMapper;
+    private final MyBatisPlusEventsMapper myBatisPlusEventsMapper;
+    private final OrderKafkaProducer orderKafkaProducer;
 
-        // 1. 一次查出 User (避免迴圈內重複查詢)
-        Users users = userRepository.findByAccount(req.get(0).getAccount());
-        if (users == null) return new RestfulResponse<>("-0001", "失敗", "用戶不存在");
+    // 加上這一行來注入 KafkaTemplate
 
-        // 2. 先進行庫存檢查 (請確保 checkQty 已經改為批量檢查)
-        if (!areaService.checkQty(req)) {
-            return new RestfulResponse<>("-0002", "失敗", "有座位數量不足");
-        }
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-        // 3. 準備訂單資料
-        List<Orders> orderList = new ArrayList<>();
-        for (OrderAddRequest data : req) {
-            if (data.getOrderQty() == null || "0".equals(data.getOrderQty())) {
-                continue;
-            }
-            Orders order = new Orders();
-            order.setUserId(users.getUserId());
-            order.setEventsId(data.getEventsId());
-            order.setOrderArea(data.getOrderArea());
-            order.setOrderQty(Integer.valueOf(data.getOrderQty()));
-            order.setOrderPrice(data.getOrderPrice());
-            order.setOrderDate(orderDate);
-            order.setOrderStatus(0);
-            orderList.add(order);
-        }
-
-        // 4. 批次處理
-        try {
-            // 批次扣庫存
-            areaService.updateQty(orderList);
-            // 批次插入訂單 (Spring Data JPA 的 saveAll 配合 batch_size 設定) PS:暫時不設定
-            ordersRepository.saveAll(orderList);
-        } catch (Exception e) {
-            throw new RuntimeException("資料庫更新失敗:" , e); // 觸發 Transactional 回滾
-        }
-
-        return new RestfulResponse<>("0000", "成功", "訂單建立完成");
-    }
-
-
-
-
-
+//    @Override
+//    @Transactional
 //    public RestfulResponse<String> insert(List<OrderAddRequest> req) {
-//        if (req.isEmpty()) {
+//        Date orderDate = new Date();
+//        if (req == null || req.isEmpty()) {
 //            return new RestfulResponse<>("-0001", "失敗", "req是空值");
 //        }
 //
-//        if (!areaService.checkQty(req)) {
+//        // 1. 一次查出 User (避免迴圈內重複查詢)
+////        Users users = userRepository.findByAccount(req.get(0).getAccount());
+//        MyBatisPlusUsersEntity users = myBatisPlusUsersMapper.selectOne(
+//                new LambdaQueryWrapper<MyBatisPlusUsersEntity>()
+//                        .eq(MyBatisPlusUsersEntity::getAccount, req.get(0).getAccount())
+//        );
+//        if (users == null) return new RestfulResponse<>("-0001", "失敗", "用戶不存在");
+//
+//
+//        // 2. 準備訂單資料
+//        List<MyBatisPlusOrdersEntity> orderList = new ArrayList<>();
+//        for (OrderAddRequest data : req) {
+//            if (data.getOrderQty() == null || "0".equals(data.getOrderQty())) {
+//                continue;
+//            }
+//            MyBatisPlusOrdersEntity order = new MyBatisPlusOrdersEntity();
+//            order.setUserId(users.getUserId());
+//            order.setEventsId(data.getEventsId());
+//            order.setOrderArea(data.getOrderArea());
+//            order.setOrderQty(Integer.valueOf(data.getOrderQty()));
+//            order.setOrderPrice(data.getOrderPrice());
+//            order.setOrderDate(orderDate);
+//            order.setOrderStatus(0);
+//            orderList.add(order);
+//        }
+//        // 3.扣座位跟檢查座位
+//        if (!areaService.checkAndUpdateQty(orderList)) {
+//            log.error("訂單建立失敗，原因: 有座位數量不足或系統異常");
+//            //TransactionAspectSupport 在程式裡手動告訴 Spring：「目前這個 @Transactional 交易最後不可以 commit，要 rollback。」
+//            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
 //            return new RestfulResponse<>("-0002", "失敗", "有座位數量不足");
 //        }
 //
-//        Users users = userRepository.findByAccount(req.get(0).getAccount());
 //
-//        for (OrderAddRequest data : req) {
-//            System.out.println("Received request: " + data.toString());
-//            if (users != null) {
-//                Orders order = new Orders();
-//                order.setUserId(users.getUserId());
-//                order.setEventsId(data.getEventsId());
-//                order.setOrderArea(data.getOrderArea());
-//                order.setOrderQty(Integer.valueOf(data.getOrderQty()));
-//                order.setOrderPrice(data.getOrderPrice());
-//                order.setOrderDate(new Date());
-//                order.setOrderStatus(0);
-//                System.out.println("裝箱完的Order資料:" + order);
-//
-//                try {
-//                    areaService.updateQty(order);//減少 areaQty
-//                    ordersRepository.save(order);
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                    return new RestfulResponse<>("-0001", "失敗", "插入table失敗");
-//                }
-//
-//            } else {
-//                System.out.println("找不到user資料");
-//            }
-//
-//
-//            return new RestfulResponse<>("0000", "成功", "接收到後端的資料");
+//        // 4.成立訂單
+//        try {
+//            this.saveBatch(orderList);
+//        } catch (Exception e) {
+//            throw new RuntimeException("資料庫更新失敗:", e); // 觸發 Transactional 回滾
 //        }
 //
-//        return new RestfulResponse<>("-0001", "失敗", "後端收到不正確資料");
+//        return new RestfulResponse<>("0000", "成功", "訂單建立完成");
 //    }
 
+    @Override
+    public RestfulResponse<String> insert(List<OrderAddRequest> req) {
+        if (req == null || req.isEmpty()) {
+            return new RestfulResponse<>("-0001", "失敗", "訂單資料不可為空");
+        }
 
+        // 1. 查出使用者（避免迴圈內重複查詢）
+        MyBatisPlusUsersEntity users = myBatisPlusUsersMapper.selectOne(
+                new LambdaQueryWrapper<MyBatisPlusUsersEntity>()
+                        .eq(MyBatisPlusUsersEntity::getAccount, req.get(0).getAccount())
+        );
+        if (users == null) {
+            return new RestfulResponse<>("-0002", "失敗", "找不到使用者");
+        }
+
+        // 2. 產生本次搶票事務唯一的 Correlation ID
+        String correlationId = java.util.UUID.randomUUID().toString();
+
+        OrderCreatedEvent event = OrderCreatedEvent.builder()
+                .correlationId(correlationId)
+                .items(req)
+                .userId(users.getUserId())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        // 3. 發送至 ORDER_CREATE，由 OrderKafkaConsumer 異步消費並呼叫 insertFromKafka
+        //    Key = eventsId_orderArea，確保同區域訂單進入同個 Partition
+        String kafkaKey = req.get(0).getEventsId() + "_" + req.get(0).getOrderArea();
+        orderKafkaProducer.sendOrderCreateMessage(kafkaKey, event);
+
+        // 4. 立即回傳 correlationId，供前端輪詢搶票結果
+        return new RestfulResponse<>("0000", "搶票處理中", correlationId);
+    }
+    private final ObjectMapper objectMapper = new ObjectMapper();
+//    @Override
+//    @Transactional(rollbackFor = Exception.class)
+//    public void insertFromKafka(OrderCreatedEvent event) throws JsonProcessingException {
+//        Date orderDate = new Date();
+//
+//        // 1. 將訂單明細寫入資料庫，狀態預設為 0 (PROCESSING / 處理中)
+//        //    此時不做任何庫存扣減，庫存判斷交由 Kafka Streams (RocksDB) 負責
+//        List<MyBatisPlusOrdersEntity> orderList = new ArrayList<>();
+//        for (OrderAddRequest data : event.items()) {
+//            if (data.getOrderQty() == null || "0".equals(data.getOrderQty())) {
+//                continue;
+//            }
+//            MyBatisPlusOrdersEntity order = new MyBatisPlusOrdersEntity();
+//            order.setUserId(event.userId());
+//            order.setEventsId(data.getEventsId());
+//            order.setOrderArea(data.getOrderArea());
+//            order.setOrderQty(Integer.valueOf(data.getOrderQty()));
+//            order.setOrderPrice(data.getOrderPrice());
+//            order.setOrderDate(orderDate);
+//            order.setOrderStatus(OrderStatus.PROCESSING.getCode()); // 初始狀態為 0
+//            orderList.add(order);
+//        }
+//
+//        if (orderList.isEmpty()) {
+//            log.warn("收到的 Kafka 訂票事件無有效品項，略過。userId: {}", event.userId());
+//            return;
+//        }
+//
+//        try {
+//            // 2. 批次寫入資料庫，取得自增的 orderId
+//            this.saveBatch(orderList);
+//            log.info("【訂單建立】PENDING 訂單已寫入 DB，共 {} 筆。userId: {}, correlationId: {}",
+//                    orderList.size(), event.userId(), event.correlationId());
+//
+//            // 3. 封裝要發送至 Kafka 的任務清單（先收集，等一下 Commit 成功後才發）
+//            List<KafkaSendTask> kafkaTasks = new ArrayList<>();
+//            for (MyBatisPlusOrdersEntity order : orderList) {
+//                com.concer.backend.kafka.streams.ReservationStreamProcessor.StreamRequest payload =
+//                        new com.concer.backend.kafka.streams.ReservationStreamProcessor.StreamRequest();
+//                payload.orderId = String.valueOf(order.getOrderId());
+//                payload.qty = order.getOrderQty();
+//                payload.action = "LOCK";
+//
+//                String kafkaKey = order.getEventsId() + "_" + order.getOrderArea();
+////                kafkaTasks.add(new KafkaSendTask(kafkaKey, payload));
+//                // 👈 核心修正 1：手動將物件轉為 JSON 字串
+//                String jsonStringPayload = objectMapper.writeValueAsString(payload);
+//
+//                // 傳入的是 String，而不是物件
+//                kafkaTasks.add(new KafkaSendTask(kafkaKey, jsonStringPayload));
+//            }
+//
+//            // 4. ⭐ 核心優化：註冊監聽器，當且僅當資料庫事務 Commit 成功後，才真正非同步發送 Kafka 訊息
+//            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+//                @Override
+//                public void afterCommit() {
+//                    for (KafkaSendTask task : kafkaTasks) {
+//                        // 已修正：補上第三個參數 task.getPayload()，不再是空包彈
+//                        kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, task.getKey(), task.getPayload());
+//                    }
+//                    log.info("【KStreams 請求發送】DB 提交成功，已成功將 {} 筆搶票請求發送至 KStreams。", kafkaTasks.size());
+//                }
+//            });
+//
+//        } catch (Exception e) {
+//            log.error("【insertFromKafka 異常】寫入 DB 失敗，觸發回滾。", e);
+//            throw e;
+//        }
+//    }
+//
+//    // 輔助類別：用來暫存準備送往 Kafka 的 Key 與 Payload
+//    private static class KafkaSendTask {
+//        private final String key;
+//        private final String payload; // 這裡改為 String
+//        public KafkaSendTask(String key, String payload) {
+//            this.key = key;
+//            this.payload = payload;
+//        }
+//
+//        public String getKey() { return key; }
+//        public String getPayload() { return payload; }
+//    }
+
+//不使用自動factory的版本
+@Override
+@Transactional(rollbackFor = Exception.class)
+public void insertFromKafka(OrderCreatedEvent event) {
+    Date orderDate = new Date();
+
+    // 1. 將訂單明細寫入資料庫，狀態預設為 0 (PROCESSING / 處理中)
+    List<MyBatisPlusOrdersEntity> orderList = new ArrayList<>();
+    for (OrderAddRequest data : event.items()) {
+        if (data.getOrderQty() == null || "0".equals(data.getOrderQty())) {
+            continue;
+        }
+        MyBatisPlusOrdersEntity order = new MyBatisPlusOrdersEntity();
+        order.setUserId(event.userId());
+        order.setEventsId(data.getEventsId());
+        order.setOrderArea(data.getOrderArea());
+        order.setOrderQty(Integer.valueOf(data.getOrderQty()));
+        order.setOrderPrice(data.getOrderPrice());
+        order.setOrderDate(orderDate);
+        order.setOrderStatus(OrderStatus.PROCESSING.getCode()); // 初始狀態為 0
+        orderList.add(order);
+    }
+
+    if (orderList.isEmpty()) {
+        log.warn("收到的 Kafka 訂票事件無有效品項，略過。userId: {}", event.userId());
+        return;
+    }
+
+    try {
+        // 2. 批次寫入資料庫，取得自增的 orderId
+        this.saveBatch(orderList);
+        log.info("【訂單建立】PENDING 訂單已寫入 DB，共 {} 筆。userId: {}, correlationId: {}",
+                orderList.size(), event.userId(), event.correlationId());
+
+        // 3. 封裝要發送至 Kafka 的任務清單（暫存實體物件，等 Commit 成功後才發）
+        List<KafkaSendTask> kafkaTasks = new ArrayList<>();
+        for (MyBatisPlusOrdersEntity order : orderList) {
+
+            // 💡 修正點 1：改用新抽出來的獨立 DTO 物件
+            ReserveRequest payload = new ReserveRequest();
+            payload.setOrderId(String.valueOf(order.getOrderId()));
+            payload.setQty(order.getOrderQty());
+            payload.setAction("LOCK");
+
+            String kafkaKey = order.getEventsId() + "_" + order.getOrderArea();
+
+            // 💡 修正點 2：直接塞入物件，不再呼叫 objectMapper 轉字串！
+            kafkaTasks.add(new KafkaSendTask(kafkaKey, payload));
+        }
+
+        // 4. ⭐ 核心優化：事務 Commit 成功後，才真正發送 Kafka 訊息
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            //當 SQLDB 順利寫入後，才真正將狀態為 LOCK 的 ReserveRequest 拋向 KafkaTopics.RESERVE_REQUEST
+            @Override
+            public void afterCommit() {
+                for (KafkaSendTask task : kafkaTasks) {
+                    // 💡 修正點 3：此時透過 KafkaTemplate 發送出去的是純物件，
+                    // Spring 依照 properties 的全域設定，會自動在底層幫你完美序列化「一次」！
+                    kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, task.getKey(), task.getPayload());
+                }
+                log.info("【KStreams 請求發送】DB 提交成功，已成功將 {} 筆搶票請求發送至 KStreams。", kafkaTasks.size());
+            }
+        });
+    } catch (Exception e) {
+        log.error("【insertFromKafka 異常】寫入 DB 失敗，觸發回滾。", e);
+        throw e;
+    }
+}
+
+    /**
+     * 💡 修正點 4：調整輔助類別，將 payload 的型態由 String 改為封裝物件 ReserveRequest
+     */
+    @Getter
+    private static class KafkaSendTask {
+        private final String key;
+        private final ReserveRequest payload; // 👈 這裡改為 DTO 物件
+
+        public KafkaSendTask(String key, ReserveRequest payload) {
+            this.key = key;
+            this.payload = payload;
+        }
+
+    }
 
 
     @Override
     @Transactional(readOnly = true) // 優化：查詢操作加上 readOnly，效能更好
     public RestfulResponse<List<OrderMergeData>> getUserOrders(FindUserByAccountRequst req) {
-        Users users = userRepository.findByAccount(req.getAccount());
+//        Users users = userRepository.findByAccount(req.getAccount());
+        MyBatisPlusUsersEntity users = myBatisPlusUsersMapper.selectOne(
+                new LambdaQueryWrapper<MyBatisPlusUsersEntity>()
+                        .eq(MyBatisPlusUsersEntity::getAccount, req.getAccount())
+        );
         if (users == null) {
             return new RestfulResponse<>("-0001", "查無此會員", null);
         }
 
-        List<Orders> orders = ordersRepository.findByUserId(users.getUserId());
+//        List<Orders> orders = ordersRepository.findByUserId(users.getUserId());
+        List<MyBatisPlusOrdersEntity> orders = myBatisPlusOrdersMapper.selectList(
+                new LambdaQueryWrapper<MyBatisPlusOrdersEntity>()
+                        .eq(MyBatisPlusOrdersEntity::getUserId, users.getUserId())
+        );
         if (orders.isEmpty()) {
             return new RestfulResponse<>("-0001", "無訂單資料", null);
         }
 
         // 1. 取得所有不重複的 EventsId
         List<Integer> eventIds = orders.stream()
-                .map(Orders::getEventsId)
+                .map(MyBatisPlusOrdersEntity::getEventsId)
                 .distinct()
                 .collect(Collectors.toList());
 
         // 2. 一次查出所有相關的 Events 並存入 Map
-        Map<Integer, Events> eventMap = eventsRepository.findAllById(eventIds)
+//        Map<Integer, Events> eventMap = eventsRepository.findAllById(eventIds)
+//                .stream()
+//                .collect(Collectors.toMap(Events::getEventsId, e -> e));
+
+        Map<Integer, MyBatisPlusEventsEntity> eventMapByMybatisPlus = myBatisPlusEventsMapper.selectList(
+                        new LambdaQueryWrapper<MyBatisPlusEventsEntity>()
+                                .in(MyBatisPlusEventsEntity::getEventsId, eventIds)
+                )
                 .stream()
-                .collect(Collectors.toMap(Events::getEventsId, e -> e));
+                .collect(Collectors.toMap(
+                        MyBatisPlusEventsEntity::getEventsId,
+                        e -> e
+                ));
         // --- 【優化整合結束】---
 
 
         //相同訂單編號跟建立時間是一筆資料
-        Map<String, List<Orders>> ordersByOrder = orders.stream()
+        Map<String, List<MyBatisPlusOrdersEntity>> ordersByOrder = orders.stream()
                 .collect(Collectors.groupingBy(order ->
                         order.getEventsId() + "_" + order.getOrderDate().getTime()
                 ));
 
         List<OrderMergeData> mergeDataList = new ArrayList<>();
 
-        for (Map.Entry<String, List<Orders>> entry : ordersByOrder.entrySet()) {
-            List<Orders> ordersForOneOrder = entry.getValue();
+        for (Map.Entry<String, List<MyBatisPlusOrdersEntity>> entry : ordersByOrder.entrySet()) {
+            List<MyBatisPlusOrdersEntity> ordersForOneOrder = entry.getValue();
             Integer eventsId = ordersForOneOrder.get(0).getEventsId();
 
             OrderMergeData mergeData = new OrderMergeData();
@@ -180,7 +377,7 @@ public class OrderServiceImpl implements OrderService {
 
             int totalQty = 0;
             int totalAmount = 0;
-            for (Orders order : ordersForOneOrder) {
+            for (MyBatisPlusOrdersEntity order : ordersForOneOrder) {
                 totalQty += order.getOrderQty();
                 totalAmount += order.getOrderQty() * order.getOrderPrice();
             }
@@ -191,7 +388,7 @@ public class OrderServiceImpl implements OrderService {
             mergeData.setStatus(ordersForOneOrder.get(0).getOrderStatus());
 
             List<OrdersResponse> orderList = ordersForOneOrder.stream().map(order -> {
-                Events event = eventMap.get(order.getEventsId());
+                MyBatisPlusEventsEntity event = eventMapByMybatisPlus.get(order.getEventsId());
                 String eventName = (event != null) ? event.getEventsName() : "";
                 String eventDate = (event != null) ? event.getEventDate() : "";
 
@@ -218,7 +415,7 @@ public class OrderServiceImpl implements OrderService {
         return new RestfulResponse<>("0000", "搜尋成功", mergeDataList);
     }
 
-//    @Override
+    //    @Override
 //    public RestfulResponse<List<OrderMergeData>> getUserOrders(FindUserByAccountRequst req) {
 //        System.out.println("傳入的accout: " + req);
 //        Users users = userRepository.findByAccount(req.getAccount());
@@ -277,19 +474,30 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public RestfulResponse<String> cancelOrders(OrderCancelRequest req) {
 
-
-
-        log.info("收到的資料:" + req);
-
-
+//        log.info("收到的資料:" + req);
 
         if (req != null) {
-            int count = ordersRepository.updateStatusByOrderIds(req.getOrdersId());
+//            int count = ordersRepository.updateStatusByOrderIds(req.getOrdersId());
+            int count = myBatisPlusOrdersMapper.update(
+                    null,
+                    new LambdaUpdateWrapper<MyBatisPlusOrdersEntity>()
+                            .set(MyBatisPlusOrdersEntity::getOrderStatus, OrderStatus.CANCELLED.getCode())
+                            .in(MyBatisPlusOrdersEntity::getOrderId, req.getOrdersId())
+            );
             System.out.println("更新筆數 = " + count);
 
-            List<Orders> orders = ordersRepository.
-                    findByUserIdAndEventsId(req.getOrdersId());
-            areaService.refundQty(orders);
+//            List<Orders> orders = ordersRepository.
+//                    findByUserIdAndEventsId(req.getOrdersId());
+
+            List<MyBatisPlusOrdersEntity> orders = myBatisPlusOrdersMapper.selectList(
+                    new LambdaQueryWrapper<MyBatisPlusOrdersEntity>()
+                            .in(MyBatisPlusOrdersEntity::getOrderId, req.getOrdersId())
+            );
+
+            if (!areaService.refundQty(orders)) {
+                return new RestfulResponse<>
+                        ("-0001", "失敗", "取消失敗");
+            }
             return new RestfulResponse<>
                     ("0000", "成功", "取消成功");
         }

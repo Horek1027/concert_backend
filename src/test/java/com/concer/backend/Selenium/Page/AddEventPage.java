@@ -25,7 +25,6 @@ import java.util.List;
 @Data
 @Slf4j
 public class AddEventPage {
-
     private WebDriver driver;
     private WebDriverWait wait;
 
@@ -56,8 +55,10 @@ public class AddEventPage {
     @FindBy(xpath = "//button[contains(., '下一步')]")
     private WebElement nextButton;
 
+    //前面宣告這邊才是建立物件
     public AddEventPage(WebDriver driver) {
         this.driver = driver;
+        // 初始化：設定最長等 10 秒，每 0.5 秒會去網頁檢查一次
         this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         PageFactory.initElements(driver, this);
     }
@@ -107,6 +108,7 @@ public class AddEventPage {
         dropdown.findElement(By.xpath(".//li[contains(@class,'ant-picker-ok')]//button")).click();
 
         // 11.【驗證結果】安全檢查：等待輸入框裡面確實已經出現了文字，確認剛才的操作有成功寫入
+        //wait.until : 等待直到「確定」按鈕可以被點擊，才執行下一步
         wait.until(driver -> {
             String val = input.getAttribute("value");
             return val != null && !val.isBlank();
@@ -173,7 +175,6 @@ public class AddEventPage {
         try {
             // 嘗試方法 1：直接點擊輸入框本體
             input.click();
-
         } catch (Exception e) {
             // 如果方法 1 失敗（可能被外殼擋住），嘗試方法 2：移動到外殼元件上再點擊
             new Actions(driver).moveToElement(picker).click().perform();

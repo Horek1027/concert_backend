@@ -1,18 +1,25 @@
 package com.concer.backend.events.Service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.concer.backend.Request.AreaAddRequest;
 import com.concer.backend.Request.EventsAndAreaRequest;
 import com.concer.backend.Request.FindUserByAccountRequst;
 import com.concer.backend.Response.RestfulResponse;
-import com.concer.backend.area.DAO.AreaRepository;
 import com.concer.backend.area.Entity.Area;
+import com.concer.backend.area.MyBatisPlus.MyBatisPlusAreaEntity;
+import com.concer.backend.area.MyBatisPlus.MyBatisPlusAreaMapper;
+import com.concer.backend.area.Service.AreaService;
 import com.concer.backend.events.DAO.EventsRepository;
 import com.concer.backend.events.Entity.Events;
+import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsEntity;
+import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsMapper;
 import com.concer.backend.users.DAO.UserRepository;
 import com.concer.backend.users.Entity.Users;
+import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersEntity;
+import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.NullValueInNestedPathException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,35 +30,40 @@ import java.util.*;
 @Service
 @Transactional
 @Slf4j
+@RequiredArgsConstructor // 自動為所有標記為 final 的欄位生成建構子
+
 public class EventsServiceImpl implements EventsService {
-    @Autowired
-    private EventsRepository eventsRepository;
+//    private final EventsRepository eventsRepository;
+//    private final UserRepository userRepository;
+//    private final AreaRepository areaRepository;
+//    private final EventsMapper eventsMapper;
 
-    @Autowired
-    private UserRepository userRepository;
+    private final AreaService areaService;
 
-    @Autowired
-    private AreaRepository areaRepository;
+    private final MyBatisPlusUsersMapper myBatisPlusUsersMapper;
+    private final MyBatisPlusAreaMapper myBatisPlusAreaMapper;
+    private final MyBatisPlusEventsMapper myBatisPlusEventsMapper;
 
     @Override
-    public RestfulResponse<Iterable<Events>> getAllEvents() {
-        List<Events> list = eventsRepository.findAllWithArea();
+    public RestfulResponse<Iterable<MyBatisPlusEventsEntity>> getAllEvents() {
+//        List<Events> list = eventsRepository.findAllWithArea();
+        List<MyBatisPlusEventsEntity> list = myBatisPlusEventsMapper.findAllWithArea();
         return new RestfulResponse<>("0000", "搜尋到全部資料", list);
     }
 
     // 單一搜尋
     @Override
-    public Optional<Events> getEventsInfo(Integer eventsId) {
+    public Optional<MyBatisPlusEventsEntity> getEventsInfo(Integer eventsId) {
 
-        return eventsRepository.findById(eventsId);
+        return myBatisPlusEventsMapper.findById(eventsId);
     }
 
     // 關鍵字搜尋
     @Override
-    public RestfulResponse<List<Events>> wordSerchEvent(String input) {
+    public RestfulResponse<List<MyBatisPlusEventsEntity>> wordSerchEvent(String input) {
         System.out.println("前端送來的搜尋字串:" + input);
 
-        List<Events> eventsList = eventsRepository.searchProgramInfoByName(input);
+        List<MyBatisPlusEventsEntity> eventsList = myBatisPlusEventsMapper.searchProgramInfoByName(input);
         if (eventsList.isEmpty()) {
             return new RestfulResponse<>("-0001", "關鍵字查無資料", eventsList);
         }
@@ -90,11 +102,19 @@ public class EventsServiceImpl implements EventsService {
         }
     }
 
+    private MyBatisPlusUsersEntity findByAccount (String account){
+        return  myBatisPlusUsersMapper.selectOne(
+                new LambdaQueryWrapper<MyBatisPlusUsersEntity>()
+                        .eq(MyBatisPlusUsersEntity::getAccount,account)
+        );
+    }
+
     @Override
     @Transactional //新增涉及多張 Table一定要加
     public RestfulResponse<String> insert(EventsAndAreaRequest req) {
         System.out.println("接收到的活動表單資料: " + req.toString());
-        Users creator = userRepository.findByAccount(req.getEventAddData().getAccount());
+//        Users creator = userRepository.findByAccount(req.getEventAddData().getAccount());
+        MyBatisPlusUsersEntity creator = this.findByAccount(req.getEventAddData().getAccount());
         if (creator == null) {
             return new RestfulResponse<>("-0001", "活動新增失敗", "該會員帳號不存在");
         }
@@ -104,7 +124,7 @@ public class EventsServiceImpl implements EventsService {
             Date shelfTime = stringToDate(req.getEventAddData().getShelfTime());
             Date offSalefTime = stringToDate(req.getEventAddData().getOffSaleTime());
 
-            Events events = new Events();
+            MyBatisPlusEventsEntity events = new MyBatisPlusEventsEntity();
             events.setUserId(creator.getUserId());
             events.setEventsName(req.getEventAddData().getEventsName());
             events.setEventsDetails(req.getEventAddData().getEventsDetails());
@@ -115,18 +135,21 @@ public class EventsServiceImpl implements EventsService {
             events.setOffSaleTime(offSalefTime);
             events.setImage1(req.getEventAddData().getImage1());
 
-            List<Area> areas = new ArrayList<>();
+            myBatisPlusEventsMapper.insert(events);
+
+            List<MyBatisPlusAreaEntity> areas = new ArrayList<>();
             for (AreaAddRequest data : req.getAreaAddData()) {
-                Area area = new Area();
+                MyBatisPlusAreaEntity area = new MyBatisPlusAreaEntity();
                 area.setAreaName(data.getAreaName());
                 area.setAreaPrice(data.getAreaPrice());
                 area.setQty(data.getQty());
-                area.setEventsId(events);
+                area.setEventsId(events.getEventsId());
                 areas.add(area);
             }
-            events.setArea(areas);
-            eventsRepository.save(events);
-            System.out.println("eventsRepository已執行save");
+            areaService.saveBatch(areas);
+            //MyBatis 不能設定oneTwoMany 以及ManyToOne 因此要分兩次insert
+//            eventsRepository.save(events);
+//            System.out.println("eventsRepository已執行save");
             return new RestfulResponse<>("0000", "新增活動成功", null);
         } catch (NullValueInNestedPathException nullMessage) {
 //            BeanUtils.getProperty(req, "eventAddData.eventsName")。如果中間的物件存在，
@@ -140,9 +163,19 @@ public class EventsServiceImpl implements EventsService {
     }
 
     @Override
-    public RestfulResponse<Iterable<Events>> getEventsByUserId(FindUserByAccountRequst req) {
-        Users users = userRepository.findByAccount(req.getAccount());
-        List<Events> events = eventsRepository.getByUserId(users.getUserId());
+    public RestfulResponse<Iterable<MyBatisPlusEventsEntity>> getEventsByUserId(FindUserByAccountRequst req) {
+        MyBatisPlusUsersEntity users = this.findByAccount(req.getAccount());
+//        List<Events> events = eventsRepository.getByUserId(users.getUserId());
+//        List<MyBatisPlusEventsEntity> events = myBatisPlusEventsMapper.selectList(
+//                new LambdaQueryWrapper<MyBatisPlusEventsEntity>()
+//                        .in(MyBatisPlusEventsEntity::getUserId,users.getUserId())
+//        );
+
+        List<MyBatisPlusEventsEntity> events = myBatisPlusEventsMapper.findUserCreatedEvent(users.getUserId());
+
+//        log.info("查詢到的資料:" + events);
+
+
         if (!events.isEmpty()) {
             return new RestfulResponse<>("0000", "搜尋成功", events);
         }

@@ -6,6 +6,7 @@ import com.concer.backend.Response.UserAccountResponse;
 import com.concer.backend.Response.UsersInfoResponse;
 import com.concer.backend.Response.UsersLoginResponse;
 import com.concer.backend.users.Entity.Users;
+import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersEntity;
 import com.concer.backend.users.Service.UsersService;
 import com.concer.backend.users.Service.UsersServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,8 +22,32 @@ public class UsersRestController {
     @Autowired
     private UsersService usersService;
 
+    @PostMapping("/testDeviceApi")
+    public RestfulResponse<String>testDeviceApi(
+            @RequestHeader(value = "Sec-CH-UA-Mobile", required = false) String isMobileHeader,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent){
+        boolean isMobile = checkIsMobile(isMobileHeader, userAgent);
+        return usersService.testAPI(isMobile);
+    }
+
+    /**
+     * 輔助方法：判斷是否為手機
+     */
+    private boolean checkIsMobile(String isMobileHeader, String userAgent) {
+        // 優先使用現代瀏覽器的 Client Hints
+        if (isMobileHeader != null) {
+            return "?1".equals(isMobileHeader);
+        }
+        // 備援方案：使用 User-Agent 關鍵字判斷
+        if (userAgent != null) {
+            String ua = userAgent.toLowerCase();
+            return ua.contains("android") || ua.contains("iphone") || ua.contains("mobile");
+        }
+        return false; // 預設為電腦端
+    }
+
     @GetMapping("/findAll")
-    public List<Users> getAllUsers(){
+    public List<MyBatisPlusUsersEntity> getAllUsers(){
         return usersService.getAllUsers();
     }
     @PostMapping("/register")
@@ -63,8 +88,7 @@ public class UsersRestController {
     @PostMapping("/update")
     public  RestfulResponse<String> updateUsersDetail (@RequestBody UpdateUserRequest req){
         System.out.println("updateUsersDetail，更新帳號資料:" +req.getAccount());
-        RestfulResponse<String> response = usersService.updateUserDetail(req);
-        return response;
+        return usersService.updateUserDetail(req);
     }
 
     @PostMapping("/updatePassword")

@@ -4,6 +4,7 @@ import com.concer.backend.Request.EventsAndAreaRequest;
 import com.concer.backend.Request.FindUserByAccountRequst;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.events.Entity.Events;
+import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsEntity;
 import com.concer.backend.events.Service.EventsService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,24 +20,18 @@ public class EventsController {
     private EventsService eventsService;
     //使用全部搜尋
     @GetMapping()
-    public RestfulResponse<Iterable<Events>> getAllEvents(){
-
+    public RestfulResponse<Iterable<MyBatisPlusEventsEntity>> getAllEvents(){
         return  eventsService.getAllEvents();
     }
     //使用id 單一搜尋
     @GetMapping("/{eventsId}")
-    public RestfulResponse<Events> getEvnentInfo(@PathVariable Integer eventsId) {
-        Optional<Events> events = eventsService.getEventsInfo(eventsId);
-        if(events.isPresent()){
-            RestfulResponse<Events> response =new RestfulResponse<Events>("0000","搜尋到單筆資料",events.get());
-            return response;
-        }
-        RestfulResponse<Events> responsefail =new RestfulResponse<Events>("-0001","查無單筆資料",null);
-        return responsefail;
+    public RestfulResponse<MyBatisPlusEventsEntity> getEvnentInfo(@PathVariable Integer eventsId) {
+        Optional<MyBatisPlusEventsEntity> events = eventsService.getEventsInfo(eventsId);
+        return events.map(myBatisPlusEventsEntity -> new RestfulResponse<>("0000", "搜尋到單筆資料", myBatisPlusEventsEntity)).orElseGet(() -> new RestfulResponse<>("-0001", "查無單筆資料", null));
     }
     //使用關鍵字搜尋
     @GetMapping("/search/{input}")
-    public RestfulResponse<List<Events>> wordSerchEvent(@PathVariable String input){
+    public RestfulResponse<List<MyBatisPlusEventsEntity>> wordSerchEvent(@PathVariable String input){
         return  eventsService.wordSerchEvent(input);
     }
     //新增events包含area
@@ -45,7 +40,7 @@ public class EventsController {
         return eventsService.insert(req);
     }
     @PostMapping("/userId")
-    public RestfulResponse<Iterable<Events>>getEventsByUserId(@RequestBody FindUserByAccountRequst req){
+    public RestfulResponse<Iterable<MyBatisPlusEventsEntity>>getEventsByUserId(@RequestBody FindUserByAccountRequst req){
         return eventsService.getEventsByUserId(req);
     }
 }

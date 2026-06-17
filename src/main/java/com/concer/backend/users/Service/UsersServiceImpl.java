@@ -1,11 +1,16 @@
 package com.concer.backend.users.Service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.concer.backend.Request.*;
 import com.concer.backend.Response.RestfulResponse;
 import com.concer.backend.Response.UserAccountResponse;
 import com.concer.backend.Response.UsersLoginResponse;
 import com.concer.backend.users.DAO.UserRepository;
 import com.concer.backend.users.Entity.Users;
+import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersEntity;
+import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersMapper;
 import com.concer.backend.util.JwtUtils;
 import com.concer.backend.util.Lock;
 import io.jsonwebtoken.Claims;
@@ -32,8 +37,12 @@ import java.util.UUID;
 @RequiredArgsConstructor // 自動為所有標記為 final 的欄位生成建構子
 @Transactional
 @Slf4j
-public class UsersServiceImpl implements UsersService {
-    private final UserRepository userRepository;
+public class UsersServiceImpl
+        extends ServiceImpl<MyBatisPlusUsersMapper,MyBatisPlusUsersEntity>
+        implements UsersService {
+//    private final UserRepository userRepository;
+
+    private final MyBatisPlusUsersMapper myBatisPlusUsersMapper;
     // 官方的SpringRedis 套件 用於紀錄Session
     private final StringRedisTemplate stringRedisTemplate;
     private final BCryptPasswordEncoder passwordEncoder;
@@ -44,13 +53,32 @@ public class UsersServiceImpl implements UsersService {
 //    }
 
 
+    private  MyBatisPlusUsersEntity findUserByAccount(String account){
+        return  myBatisPlusUsersMapper.selectOne(
+                new LambdaQueryWrapper<MyBatisPlusUsersEntity>().
+                        eq(MyBatisPlusUsersEntity::getAccount ,account)
+        );
+    }
+
+    @Override
+    public RestfulResponse<String> testAPI(boolean isMobile) {
+        try{
+            log.info("是否為手機:{} ",isMobile);
+        }catch (Exception e){
+            log.error("發生錯誤:{}",e);
+            return new RestfulResponse<String>("-0001","請求失敗","");
+        }
+        return new RestfulResponse<String>("0000","請求成功","");
+    }
+
     @Override
     public RestfulResponse<String> insert(AddUsersRequest req) {
         if (req == null || req.getAccount() == null) {
             return new RestfulResponse<>("-0001", "請求資料不完整", null);
         }
 
-        Users checkAccount = userRepository.findByAccount(req.getAccount());
+//        Users checkAccount = userRepository.findByAccount(req.getAccount());
+        MyBatisPlusUsersEntity checkAccount = this.findUserByAccount(req.getAccount()) ;
         if (checkAccount != null) {
             log.info("重複的帳號: " + checkAccount.getAccount());
             RestfulResponse<String> response = new RestfulResponse<>
@@ -59,14 +87,14 @@ public class UsersServiceImpl implements UsersService {
         }
 
         try {
-            Users users = new Users();
+            MyBatisPlusUsersEntity users = new MyBatisPlusUsersEntity();
             users.setAccount(req.getAccount());
             users.setPassword(passwordEncoder.encode(req.getPassword())); //把密碼設定為Bcry加密
             users.setEmail(req.getEmail());
             users.setNickname(req.getNickname());
             users.setCellphone(req.getCellphone());
             users.setStatus(req.getStatus());
-            userRepository.save(users);
+            myBatisPlusUsersMapper.insert(users);
 
             return new RestfulResponse<>("0000", "新增成功", "新增成功");
         } catch (Exception e) {
@@ -76,8 +104,10 @@ public class UsersServiceImpl implements UsersService {
     }
 
     @Override
-    public Optional<Users> getUsersById(Integer usersId) {
-        return userRepository.findById(usersId);
+    public Optional<MyBatisPlusUsersEntity> getUsersById(Integer usersId) {
+        return Optional.ofNullable(
+                myBatisPlusUsersMapper.selectById(usersId)
+        );
     }
 
     @Override
@@ -86,7 +116,8 @@ public class UsersServiceImpl implements UsersService {
             return new RestfulResponse<>("-0001", "Account是空值", null);
         }
         try {
-            Users users = userRepository.findByAccount(req.getAccount());
+//            Users users = userRepository.findByAccount(req.getAccount());
+            MyBatisPlusUsersEntity users = this.findUserByAccount(req.getAccount());
             if (users == null) {
                 return new RestfulResponse<>("-0002", "查無此使用者", null);
             }
@@ -103,7 +134,7 @@ public class UsersServiceImpl implements UsersService {
     @Override
     public RestfulResponse<UsersLoginResponse> loginForSmallToken(UsersLoginRequest req) {
         //確認是否有此筆資料
-        Users users = userRepository.findByAccount(req.getAccount());
+        MyBatisPlusUsersEntity users = this.findUserByAccount(req.getAccount());
 
         //下方比對密碼
         if (users != null && Lock.checkPasssword(req.getPassword(), users.getPassword())) {
@@ -118,8 +149,6 @@ public class UsersServiceImpl implements UsersService {
         return new RestfulResponse<>("-0001", "密碼比對失敗", null);
     }
 
-
-
     @Override
     public RestfulResponse<UsersLoginResponse> login(UsersLoginRequest req) {
 
@@ -127,7 +156,7 @@ public class UsersServiceImpl implements UsersService {
             String inputAccount = req.getAccount();
 
             //確認是否有此筆資料
-            Users users = userRepository.findByAccount(inputAccount);
+            MyBatisPlusUsersEntity users = this.findUserByAccount(req.getAccount());
 
             //下方比對密碼
             if (users != null && Lock.checkPasssword(req.getPassword(), users.getPassword())) {
@@ -173,9 +202,6 @@ public class UsersServiceImpl implements UsersService {
 
         return new RestfulResponse<>("-0001", "登入失敗", null);
     }
-
-
-
 
 
     @Override
@@ -253,7 +279,7 @@ public class UsersServiceImpl implements UsersService {
             }
 
             // 9. 確認資料庫中是否真有此會員（身分一切以 Cookie/Token 安全解碼內容為核心）
-            Users orginalUser = userRepository.findByAccount(cookieAccount);
+            MyBatisPlusUsersEntity orginalUser = this.findUserByAccount(cookieAccount);
             if (orginalUser == null) {
                 return new RestfulResponse<>("-0001", "會員不存在", null);
             }
@@ -293,7 +319,7 @@ public class UsersServiceImpl implements UsersService {
                 return new RestfulResponse<>("-0001", "Token 帳號不一致", null);
             }
 
-            Users originalUser = userRepository.findByAccount(accessAccount);
+            MyBatisPlusUsersEntity originalUser = this.findUserByAccount(req.getAccount());
             if (originalUser == null) {
                 return new RestfulResponse<>("-0001", "使用者不存在", null);
             }
@@ -389,7 +415,7 @@ public class UsersServiceImpl implements UsersService {
     @Override
     public RestfulResponse<String> updateUserDetail(UpdateUserRequest req) {
         try {
-            userRepository.updateUsersDetail(req.getAccount(), req.getNickname(),
+            myBatisPlusUsersMapper.updateUsersDetail(req.getAccount(), req.getNickname(),
                     req.getEmail(), req.getCellphone());
             System.out.println("userRepository執行DetailUpdate");
             return new RestfulResponse<>("0000", "基本資料修改成功", "基本資料修改成功");
@@ -404,7 +430,8 @@ public class UsersServiceImpl implements UsersService {
 
         System.out.println("收到要求資料:" + req);
         String inputAccount = req.getAccount();
-        Users users = userRepository.findByAccount(inputAccount);
+        MyBatisPlusUsersEntity users = this.findUserByAccount(req.getAccount()) ;
+
 
         //下方比對密碼是否相同，相同則跳出錯誤
         if (users != null && !Lock.checkPasssword(req.getPassword(), users.getPassword())) {
@@ -413,7 +440,12 @@ public class UsersServiceImpl implements UsersService {
         } else {
             try {
                 System.out.println("執行修改密碼區塊");
-                userRepository.updatePassword(req.getAccount(), passwordEncoder.encode(req.getNewPassword()));
+//                userRepository.updatePassword(req.getAccount(), passwordEncoder.encode(req.getNewPassword()));
+                LambdaUpdateWrapper<MyBatisPlusUsersEntity> wrapper = new LambdaUpdateWrapper<>();
+                wrapper.eq(MyBatisPlusUsersEntity::getAccount ,req.getAccount())
+                        .set(MyBatisPlusUsersEntity::getPassword,req.getNewPassword());
+                myBatisPlusUsersMapper.update(null,wrapper);
+
                 return new RestfulResponse<>("0000", "密碼修改成功",
                         "密碼修改成功");
             } catch (Exception e) {
@@ -425,8 +457,8 @@ public class UsersServiceImpl implements UsersService {
     }
 
     @Override
-    public List<Users> getAllUsers() {
-
-        return userRepository.findAll();
+    public List<MyBatisPlusUsersEntity> getAllUsers() {
+         //null 就是「不加任何條件」＝全表查詢
+        return  myBatisPlusUsersMapper.selectList(null);
     }
 }

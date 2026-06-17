@@ -47,6 +47,13 @@ public class RegisterPage {
     @FindBy(xpath = "//button[contains(text(), '送出')]")
     private WebElement registerButton;
 
+    //用於抓取錯誤訊息
+    @FindBy(className = "error-msg")
+    private WebElement errorMessage;
+
+    public String getErrorMessageText() {
+        return errorMessage.getText();
+    }
 
 
     // 建構子

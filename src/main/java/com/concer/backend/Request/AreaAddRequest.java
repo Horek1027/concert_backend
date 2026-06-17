@@ -1,7 +1,7 @@
 package com.concer.backend.Request;
 
 
-import com.concer.backend.events.Entity.Events;
+import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsEntity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,5 +13,5 @@ public class AreaAddRequest {
     private String areaName;
     private Integer areaPrice;
     private Integer qty;
-    private Events eventsId;
+    private MyBatisPlusEventsEntity eventsId;
 }

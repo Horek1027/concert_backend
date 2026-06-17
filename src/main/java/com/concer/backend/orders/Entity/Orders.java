@@ -19,7 +19,6 @@ public class Orders {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="order_id")
     private Integer orderId;
-
     @Column(name="users_id")
     private Integer userId;
     @Column(name = "events_id" )
@@ -30,11 +29,13 @@ public class Orders {
     private Integer orderQty;
     @Column(name="order_price")
     private Integer orderPrice;
-
     @Column(name="order_date")
     private Date orderDate;
+//   不使用 Enumerated 會導致存到DB 變String 因此Java手動轉換
+//    @Enumerated(EnumType.STRING)
+//    @Column(name="order_status")
     @Column(name="order_status")
-    private Integer orderStatus;
+    private OrderStatus orderStatus;
 
 
 

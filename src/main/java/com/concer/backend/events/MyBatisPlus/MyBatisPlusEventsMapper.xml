@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsMapper">
+
+    <resultMap id="EventsWithAreaResultMap" type="com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsEntity" autoMapping="true">
+        <id property="eventsId" column="events_id"/>
+
+        <collection property="area"
+                    ofType="com.concer.backend.area.MyBatisPlus.MyBatisPlusAreaEntity"
+                    autoMapping="true">
+            <id property="areaId" column="area_id"/>
+        </collection>
+    </resultMap>
+
+    <select id="findAllWithArea" resultMap="EventsWithAreaResultMap">
+        SELECT e.*, a.area_id, a.area_name, a.area_price, a.qty
+        FROM events e
+        LEFT JOIN area a ON e.events_id = a.events_id
+    </select>
+
+    <select id="searchProgramInfoByName" resultMap="EventsWithAreaResultMap">
+        SELECT e.*, a.area_id, a.area_name, a.area_price, a.qty
+        FROM events e
+        LEFT JOIN area a ON e.events_id = a.events_id
+        WHERE e.events_name LIKE CONCAT('%', #{input}, '%')
+    </select>
+
+    <select id = "findById" resultMap="EventsWithAreaResultMap">
+        SELECT e.*, a.area_id, a.area_name, a.area_price, a.qty
+        FROM events e
+        LEFT JOIN area a ON e.events_id = a.events_id
+        WHERE e.events_id  =  #{eventsId}
+    </select>
+    <select id="findUserCreatedEvent" resultMap="EventsWithAreaResultMap">
+        SELECT e.*, a.area_id, a.area_name, a.area_price, a.qty
+        FROM events e
+        LEFT JOIN area a
+        ON e.events_id = a.events_id
+        WHERE e.user_id = #{userId}
+        ORDER BY e.events_id, a.area_id
+    </select>
+
+</mapper>
