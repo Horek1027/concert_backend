@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.concer.backend.events.Mybatis.EventsMapper">
+    <resultMap id="EventsWithAreaResultMap" type="com.concer.backend.events.Entity.Events">
+        <id property="eventsId" column="events_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="eventsName" column="events_name"/>
+        <result property="eventsDetails" column="events_details"/>
+        <result property="eventsLocation" column="events_location"/>
+        <result property="eventsOrganizer" column="events_organizer"/>
+        <result property="eventDate" column="event_date"/>
+        <result property="shelfTime" column="shelf_time"/>
+        <result property="offSaleTime" column="offsale_time"/>
+        <result property="image1" column="image1"/>
+<!-- 下方的寫法是一對一-->
+<!--<association property="area" javaType="com.example.demo.entity.Area">-->
+        <!--collection    ofType 用於一對多(OneToMany) -->
+        <collection property="area" ofType="com.concer.backend.area.Entity.Area">
+            <id property="areaId" column="area_id"/>
+            <result property="areaName" column="area_name"/>
+            <result property="areaPrice" column="area_price"/>
+            <result property="qty" column="qty"/>
+        </collection>
+    </resultMap>
+<!--id = findAllWithArea 是interface 的名稱 ,resultMap 是前面的設計  -->
+    <select id="findAllWithArea" resultMap="EventsWithAreaResultMap">
+        SELECT
+        e.events_id,
+        e.user_id,
+        e.events_name,
+        e.events_details,
+        e.events_location,
+        e.events_organizer,
+        e.event_date,
+        e.shelf_time,
+        e.offsale_time,
+        e.image1,
+        a.area_id,
+        a.area_name,
+        a.area_price,
+        a.qty
+        FROM events e
+        LEFT JOIN area a ON e.events_id = a.events_id
+    </select>
+
+    <select id = "searchProgramInfoByName" resultMap="EventsWithAreaResultMap">
+        SELECT
+        e.events_id,
+        e.user_id,
+        e.events_name,
+        e.events_details,
+        e.events_location,
+        e.events_organizer,
+        e.event_date,
+        e.shelf_time,
+        e.offsale_time,
+        e.image1,
+        a.area_id,
+        a.area_name,
+        a.area_price,
+        a.qty
+        FROM events e
+        LEFT JOIN area a ON e.events_id = a.events_id
+        WHERE e.events_name LIKE CONCAT('%', #{input}, '%')
+    </select>
+
+
+    <select id = "findById" resultMap="EventsWithAreaResultMap">
+        SELECT
+        e.events_id,
+        e.user_id,
+        e.events_name,
+        e.events_details,
+        e.events_location,
+        e.events_organizer,
+        e.event_date,
+        e.shelf_time,
+        e.offsale_time,
+        e.image1,
+        a.area_id,
+        a.area_name,
+        a.area_price,
+        a.qty
+        FROM events e
+        LEFT JOIN area a ON e.events_id = a.events_id
+        WHERE e.events_id  =  #{eventsId}
+    </select>
+
+</mapper>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.concer.backend.orders.Mybatis.OrdersMapper">
+    <resultMap id="ordersMap" type="com.concer.backend.orders.Entity.Orders">
+        <id property="orderId" column="order_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="eventsId" column="events_id"/>
+        <result property="orderArea" column="order_area"/>
+        <result property="orderQty" column="order_qty"/>
+        <result property="orderPrice" column="order_price"/>
+        <result property="orderDate" column="order_date"/>
+        <result property="orderStatus" column="order_status"/>
+    </resultMap>
+    <!--插入成功後，Java 能自動拿回資料庫生成的流水號（ID）：你必須在 <insert> 標籤上加上 useGeneratedKeys 和 keyProperty
+    。否則，寫入成功後，你 Java 物件裡的 orderId 會是一整片 null。-->
+    <insert id="insertBatch" useGeneratedKeys="true" keyProperty="orderId" keyColumn="order_id">
+        INSERT INTO orders (
+        user_id, events_id, order_area, order_qty, order_price, order_date, order_status
+        ) VALUES
+<!--    使用foreach標籤來 批次存入 效率比  saveAll 還要好  -->
+        <foreach collection="list" item="order" separator=",">
+            (
+            #{order.userId},
+            #{order.eventsId},
+            #{order.orderArea},
+            #{order.orderQty},
+            #{order.orderPrice},
+            #{order.orderDate},
+            #{order.orderStatus}
+            )
+        </foreach>
+    </insert>
+
+</mapper>

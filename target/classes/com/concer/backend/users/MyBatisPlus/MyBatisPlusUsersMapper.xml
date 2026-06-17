@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersMapper">
+    <resultMap id="userMap" type="com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersEntity" autoMapping="true">
+        <id property="userId" column="user_id"/>
+    </resultMap>
+    <update id="updateUsersDetail" >
+        UPDATE users
+        SET
+            nickname = #{nickname},
+            email = #{email},
+            cellphone = #{cellphone}
+        WHERE account = #{account}
+    </update>
+    <update id="updatePassword">
+        UPDATE users
+        SET password = #{password}
+        WHERE account = #{account}
+    </update>
+
+</mapper>
