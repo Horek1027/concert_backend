@@ -15,6 +15,7 @@ import java.util.Date;
 @TableName("orders")
 public class MyBatisPlusOrdersEntity {
     @TableId(value = "order_id", type = IdType.AUTO)
+    private Integer id;
     private Integer orderId;
     private Integer userId;
     private Integer eventsId;

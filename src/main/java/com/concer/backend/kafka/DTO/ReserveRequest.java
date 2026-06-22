@@ -8,7 +8,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReserveRequest {
+    private Integer eventsId;
+    private String orderArea;
     private String orderId;
     private int qty;
     private String action;
+    // 新增：這張訂單總共有幾筆拆單
+    private Integer totalSegments;
 }

@@ -115,7 +115,10 @@ public class StreamInventoryInitializer implements ApplicationRunner {
             String kafkaKey = area.getEventsId() + "_" + area.getAreaName();
 
             // 💡 直接 new 出物件
-            ReserveRequest initReq = new ReserveRequest("INIT", area.getQty(), "INIT");
+            ReserveRequest initReq = new ReserveRequest();
+            initReq.setOrderId("INIT");
+            initReq.setQty(area.getQty());
+            initReq.setAction("INIT");
 
             // 💡 直接丟入物件！Spring 會根據 properties 自動轉成標準 JSON 寫入 Kafka
             kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, kafkaKey, initReq);

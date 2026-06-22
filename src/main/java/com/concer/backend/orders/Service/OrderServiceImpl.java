@@ -22,7 +22,6 @@ import com.concer.backend.orders.MyBatisPlus.MyBatisPlusOrdersEntity;
 import com.concer.backend.orders.MyBatisPlus.MyBatisPlusOrdersMapper;
 import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersEntity;
 import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersMapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -33,11 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -230,88 +227,181 @@ public class OrderServiceImpl
 //        public String getPayload() { return payload; }
 //    }
 
-//不使用自動factory的版本
-@Override
-@Transactional(rollbackFor = Exception.class)
-public void insertFromKafka(OrderCreatedEvent event) {
-    Date orderDate = new Date();
+////不使用自動factory的版本
+//@Override
+//@Transactional(rollbackFor = Exception.class)
+//public void insertFromKafka(OrderCreatedEvent event) {
+//    Date orderDate = new Date();
+//
+//    // 1. 將訂單明細寫入資料庫，狀態預設為 0 (PROCESSING / 處理中)
+//    List<MyBatisPlusOrdersEntity> orderList = new ArrayList<>();
+//    for (OrderAddRequest data : event.items()) {
+//        if (data.getOrderQty() == null || "0".equals(data.getOrderQty())) {
+//            continue;
+//        }
+//        MyBatisPlusOrdersEntity order = new MyBatisPlusOrdersEntity();
+//        order.setUserId(event.userId());
+//        order.setEventsId(data.getEventsId());
+//        order.setOrderArea(data.getOrderArea());
+//        order.setOrderQty(Integer.valueOf(data.getOrderQty()));
+//        order.setOrderPrice(data.getOrderPrice());
+//        order.setOrderDate(orderDate);
+//        order.setOrderStatus(OrderStatus.PROCESSING.getCode()); // 初始狀態為 0
+//        orderList.add(order);
+//    }
+//
+//    if (orderList.isEmpty()) {
+//        log.warn("收到的 Kafka 訂票事件無有效品項，略過。userId: {}", event.userId());
+//        return;
+//    }
+//
+//    try {
+//        // 2. 批次寫入資料庫，取得自增的 orderId
+//        this.saveBatch(orderList);
+//        log.info("【訂單建立】PENDING 訂單已寫入 DB，共 {} 筆。userId: {}, correlationId: {}",
+//                orderList.size(), event.userId(), event.correlationId());
+//
+//        // 3. 封裝要發送至 Kafka 的任務清單（暫存實體物件，等 Commit 成功後才發）
+//        List<KafkaSendTask> kafkaTasks = new ArrayList<>();
+//        int totalSegments = orderList.size();
+//
+//        for (MyBatisPlusOrdersEntity order : orderList) {
+//
+//            // 💡 修正點 1：改用新抽出來的獨立 DTO 物件
+//            ReserveRequest payload = new ReserveRequest();
+//            payload.setOrderId(String.valueOf(order.getOrderId()));
+//            payload.setQty(order.getOrderQty());
+//            payload.setAction("LOCK");
+//
+//            // 核心設定這次訂單有幾個位子
+//            payload.setTotalSegments(totalSegments);
+//            String kafkaKey = order.getEventsId() + "_" + order.getOrderArea();
+//
+//            // 💡 修正點 2：直接塞入物件，不再呼叫 objectMapper 轉字串！
+//            kafkaTasks.add(new KafkaSendTask(kafkaKey, payload));
+//        }
+//
+//        // 4. ⭐ 核心優化：事務 Commit 成功後，才真正發送 Kafka 訊息
+//        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+//            //當 SQLDB 順利寫入後，才真正將狀態為 LOCK 的 ReserveRequest 拋向 KafkaTopics.RESERVE_REQUEST
+//            @Override
+//            public void afterCommit() {
+//                for (KafkaSendTask task : kafkaTasks) {
+//                    // 修正點 3：此時透過 KafkaTemplate 發送出去的是純物件，
+//                    // Spring 依照 properties 的全域設定，會自動在底層幫你完美序列化「一次」！
+//                    //因為kafka 是非同步即使 跑for 迴圈也沒有N+1 問題
+//                    kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, task.getKey(), task.getPayload());
+//                }
+//                log.info("【KStreams 請求發送】DB 提交成功，已成功將 {} 筆搶票請求發送至 KStreams。", kafkaTasks.size());
+//            }
+//        });
+//    } catch (Exception e) {
+//        log.error("【insertFromKafka 異常】寫入 DB 失敗，觸發回滾。", e);
+//        throw e;
+//    }
+//}
+//
+//    /**
+//     * 💡 修正點 4：調整輔助類別，將 payload 的型態由 String 改為封裝物件 ReserveRequest
+//     */
+//    @Getter
+//    private static class KafkaSendTask {
+//        private final String key;
+//        private final ReserveRequest payload; // 👈 這裡改為 DTO 物件
+//
+//        public KafkaSendTask(String key, ReserveRequest payload) {
+//            this.key = key;
+//            this.payload = payload;
+//        }
+//
+//    }
+private final SecureRandom secureRandom = new SecureRandom();
+    
 
-    // 1. 將訂單明細寫入資料庫，狀態預設為 0 (PROCESSING / 處理中)
-    List<MyBatisPlusOrdersEntity> orderList = new ArrayList<>();
-    for (OrderAddRequest data : event.items()) {
-        if (data.getOrderQty() == null || "0".equals(data.getOrderQty())) {
-            continue;
-        }
-        MyBatisPlusOrdersEntity order = new MyBatisPlusOrdersEntity();
-        order.setUserId(event.userId());
-        order.setEventsId(data.getEventsId());
-        order.setOrderArea(data.getOrderArea());
-        order.setOrderQty(Integer.valueOf(data.getOrderQty()));
-        order.setOrderPrice(data.getOrderPrice());
-        order.setOrderDate(orderDate);
-        order.setOrderStatus(OrderStatus.PROCESSING.getCode()); // 初始狀態為 0
-        orderList.add(order);
-    }
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void insertFromKafka(OrderCreatedEvent event) {
+        Date orderDate = new Date();
+        SecureRandom secureRandom = new SecureRandom();
+        // 使用正整數的亂數。
+        // 或者使用 secureRandom.nextInt(Integer.MAX_VALUE) 確保一定是正數
+        // 但若要徹底防重，分散式系統更建議使用 UUID.randomUUID().toString()
+        int randomValue = secureRandom.nextInt(Integer.MAX_VALUE);
 
-    if (orderList.isEmpty()) {
-        log.warn("收到的 Kafka 訂票事件無有效品項，略過。userId: {}", event.userId());
-        return;
-    }
+        // 範圍變成 1 ~ 2,147,483,647 (剛好包含 MAX_VALUE)
+//        int randomValue = 1 + secureRandom.nextInt(Integer.MAX_VALUE);
 
-    try {
-        // 2. 批次寫入資料庫，取得自增的 orderId
-        this.saveBatch(orderList);
-        log.info("【訂單建立】PENDING 訂單已寫入 DB，共 {} 筆。userId: {}, correlationId: {}",
-                orderList.size(), event.userId(), event.correlationId());
-
-        // 3. 封裝要發送至 Kafka 的任務清單（暫存實體物件，等 Commit 成功後才發）
-        List<KafkaSendTask> kafkaTasks = new ArrayList<>();
-        for (MyBatisPlusOrdersEntity order : orderList) {
-
-            // 💡 修正點 1：改用新抽出來的獨立 DTO 物件
-            ReserveRequest payload = new ReserveRequest();
-            payload.setOrderId(String.valueOf(order.getOrderId()));
-            payload.setQty(order.getOrderQty());
-            payload.setAction("LOCK");
-
-            String kafkaKey = order.getEventsId() + "_" + order.getOrderArea();
-
-            // 💡 修正點 2：直接塞入物件，不再呼叫 objectMapper 轉字串！
-            kafkaTasks.add(new KafkaSendTask(kafkaKey, payload));
-        }
-
-        // 4. ⭐ 核心優化：事務 Commit 成功後，才真正發送 Kafka 訊息
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            //當 SQLDB 順利寫入後，才真正將狀態為 LOCK 的 ReserveRequest 拋向 KafkaTopics.RESERVE_REQUEST
-            @Override
-            public void afterCommit() {
-                for (KafkaSendTask task : kafkaTasks) {
-                    // 💡 修正點 3：此時透過 KafkaTemplate 發送出去的是純物件，
-                    // Spring 依照 properties 的全域設定，會自動在底層幫你完美序列化「一次」！
-                    kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, task.getKey(), task.getPayload());
-                }
-                log.info("【KStreams 請求發送】DB 提交成功，已成功將 {} 筆搶票請求發送至 KStreams。", kafkaTasks.size());
+        // 產生一個介於 1 到 9999 之間（包含 1000，不包含 10000）的 4 位數亂數
+        // int fourDigits = secureRandom.ints(1, 10000).findFirst().getAsInt();
+        // 1. 將訂單明細寫入資料庫，狀態預設為 PROCESSING（處理中）
+        List<MyBatisPlusOrdersEntity> orderList = new ArrayList<>();
+        for (OrderAddRequest data : event.items()) {
+            if (data.getOrderQty() == null || "0".equals(data.getOrderQty())) {
+                continue;
             }
-        });
-    } catch (Exception e) {
-        log.error("【insertFromKafka 異常】寫入 DB 失敗，觸發回滾。", e);
-        throw e;
+            MyBatisPlusOrdersEntity order = new MyBatisPlusOrdersEntity();
+            order.setOrderId(randomValue);
+            order.setUserId(event.userId());
+            order.setEventsId(data.getEventsId());
+            order.setOrderArea(data.getOrderArea());
+            order.setOrderQty(Integer.valueOf(data.getOrderQty()));
+            order.setOrderPrice(data.getOrderPrice());
+            order.setOrderDate(orderDate);
+            order.setOrderStatus(OrderStatus.PROCESSING.getCode());
+            orderList.add(order);
+        }
+        if (orderList.isEmpty()) {
+            log.warn("收到的 Kafka 訂票事件無有效品項，略過。userId: {}", event.userId());
+            return;
+        }
+        try {
+            // 2. 批次寫入資料庫，自增 orderId 會在此填入 entity
+            this.saveBatch(orderList);
+            log.info("【訂單建立】PENDING 訂單已寫入 DB，共 {} 筆。userId: {}, correlationId: {}",
+                    orderList.size(), event.userId(), event.correlationId());
+            // 3. 封裝 Kafka 發送任務清單（等 DB Commit 成功後才發，避免 DB 回滾但 Kafka 已發出）
+            List<KafkaSendTask> kafkaTasks = new ArrayList<>();
+            int totalSegments = orderList.size();
+
+            for (MyBatisPlusOrdersEntity order : orderList) {
+                ReserveRequest payload = new ReserveRequest();
+                payload.setOrderId(String.valueOf(order.getOrderId()));
+                payload.setQty(order.getOrderQty());
+                payload.setAction("LOCK");
+                payload.setTotalSegments(totalSegments);
+                // 【修改】新增：同時記錄 eventsId 與 orderArea 到 ReserveRequest
+                // 原因：KStream aggregate 完成後，finalStream 的 mapValues 需要從 ReserveResult.details
+                // 中取得每筆的 eventsId + orderArea 才能組出正確的 RELEASE key。
+                // ReserveResult 是由 ReserveRequest 的欄位建構，所以 ReserveRequest 必須帶齊這兩個欄位
+                payload.setEventsId(order.getEventsId());
+                payload.setOrderArea(order.getOrderArea());
+
+                String kafkaKey = order.getEventsId() + "_" + order.getOrderArea();
+                kafkaTasks.add(new KafkaSendTask(kafkaKey, payload));
+            }
+            // 4. ⭐ 核心優化：事務 Commit 成功後，才真正發送 Kafka 訊息
+            // 原因：若在 @Transactional 內直接 send，DB 之後 rollback 但 Kafka 訊息已發出，
+            //  KStream 會對一筆不存在的訂單執行 LOCK，造成幽靈庫存扣減
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    for (KafkaSendTask task : kafkaTasks) {
+                        kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, task.key(), task.payload());
+                    }
+                    log.info("【KStreams 請求發送】DB 提交成功，已成功將 {} 筆搶票請求發送至 KStreams。", kafkaTasks.size());
+                }
+            });
+        } catch (Exception e) {
+            log.error("【insertFromKafka 異常】寫入 DB 失敗，觸發回滾。", e);
+            throw e;
+        }
     }
-}
 
     /**
-     * 💡 修正點 4：調整輔助類別，將 payload 的型態由 String 改為封裝物件 ReserveRequest
-     */
-    @Getter
-    private static class KafkaSendTask {
-        private final String key;
-        private final ReserveRequest payload; // 👈 這裡改為 DTO 物件
-
-        public KafkaSendTask(String key, ReserveRequest payload) {
-            this.key = key;
-            this.payload = payload;
-        }
-
+         * 內部輔助類別，封裝一筆待發送的 Kafka 訊息（key + payload）
+         * payload 為 DTO 物件，由 Spring KafkaTemplate 統一序列化，不在這裡手動轉 JSON
+         */
+        private record KafkaSendTask(String key, ReserveRequest payload) {
     }
 
 
@@ -504,4 +594,5 @@ public void insertFromKafka(OrderCreatedEvent event) {
         return new RestfulResponse<>
                 ("-0001", "失敗", "取消失敗");
     }
+
 }

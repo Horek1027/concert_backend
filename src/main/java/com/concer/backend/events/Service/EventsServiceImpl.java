@@ -13,6 +13,8 @@ import com.concer.backend.events.DAO.EventsRepository;
 import com.concer.backend.events.Entity.Events;
 import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsEntity;
 import com.concer.backend.events.MyBatisPlus.MyBatisPlusEventsMapper;
+import com.concer.backend.kafka.DTO.ReserveRequest;
+import com.concer.backend.kafka.KafkaTopics;
 import com.concer.backend.users.DAO.UserRepository;
 import com.concer.backend.users.Entity.Users;
 import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersEntity;
@@ -20,8 +22,11 @@ import com.concer.backend.users.MyBatisPlus.MyBatisPlusUsersMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.NullValueInNestedPathException;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -43,6 +48,7 @@ public class EventsServiceImpl implements EventsService {
     private final MyBatisPlusUsersMapper myBatisPlusUsersMapper;
     private final MyBatisPlusAreaMapper myBatisPlusAreaMapper;
     private final MyBatisPlusEventsMapper myBatisPlusEventsMapper;
+    private final KafkaTemplate<String, ReserveRequest> kafkaTemplate;
 
     @Override
     public RestfulResponse<Iterable<MyBatisPlusEventsEntity>> getAllEvents() {
@@ -147,6 +153,8 @@ public class EventsServiceImpl implements EventsService {
                 areas.add(area);
             }
             areaService.saveBatch(areas);
+            //座位區建立之後KsStream 的RocksDB應該也要同時更新
+            registerAreaInventoryInitAfterCommit(areas);
             //MyBatis 不能設定oneTwoMany 以及ManyToOne 因此要分兩次insert
 //            eventsRepository.save(events);
 //            System.out.println("eventsRepository已執行save");
@@ -160,6 +168,27 @@ public class EventsServiceImpl implements EventsService {
             log.error("新增活動時發生系統未預期錯誤: ", e);
             return new RestfulResponse<>("-0001", "活動新增失敗", "活動新增失敗");
         }
+    }
+
+    private void registerAreaInventoryInitAfterCommit(List<MyBatisPlusAreaEntity> areas) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (MyBatisPlusAreaEntity area : areas) {
+                    String kafkaKey = area.getEventsId() + "_" + area.getAreaName();
+
+                    ReserveRequest initReq = new ReserveRequest();
+                    initReq.setEventsId(area.getEventsId());
+                    initReq.setOrderArea(area.getAreaName());
+                    initReq.setOrderId("INIT");
+                    initReq.setQty(area.getQty());
+                    initReq.setAction("INIT");
+
+                    kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, kafkaKey, initReq);
+                    log.info("Area inventory INIT sent to Kafka. key: {}, qty: {}", kafkaKey, area.getQty());
+                }
+            }
+        });
     }
 
     @Override
