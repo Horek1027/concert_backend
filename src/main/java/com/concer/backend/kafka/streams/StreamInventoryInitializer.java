@@ -107,7 +107,8 @@ public class StreamInventoryInitializer implements ApplicationRunner {
 
     public void initializeRocksDB() {
         log.info("【RocksDB 預熱】開始同步庫存...");
-        //MyBatisPlus 的語法 這一行就把 table 的資料全部抓出
+        // MyBatisPlus 的語法 這一行就把 table 的資料全部抓出，
+        // 當資料超過2千筆的時候用Page 物件取得資料
         List<MyBatisPlusAreaEntity> areas = areaService.list();
 
         //為每個座位 用 活動ID + _+ 區域名稱 做uniKey

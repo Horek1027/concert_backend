@@ -7,6 +7,7 @@ import com.concer.backend.area.DAO.AreaRepository;
 import com.concer.backend.area.Entity.Area;
 import com.concer.backend.area.MyBatisPlus.MyBatisPlusAreaEntity;
 import com.concer.backend.area.MyBatisPlus.MyBatisPlusAreaMapper;
+import com.concer.backend.kafka.DTO.ReserveRequest;
 import com.concer.backend.orders.Entity.Orders;
 import com.concer.backend.orders.MyBatisPlus.MyBatisPlusOrdersEntity;
 import com.concer.backend.orders.MyBatisPlus.MyBatisPlusOrdersMapper;
@@ -16,6 +17,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.SqlSessionTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -29,6 +31,8 @@ public class AreaServiceImpl
         implements AreaService {
 
     private final SqlSessionTemplate sqlSessionTemplate;
+    // 💡 注入 KafkaTemplate
+    private final KafkaTemplate<String, ReserveRequest> kafkaTemplate;
 
 //    private final AreaMapper areaMapper;
 //    private final AreaRepository areaRepository;
@@ -156,33 +160,6 @@ public class AreaServiceImpl
     @Override
     @Transactional
     public boolean refundQty(List<MyBatisPlusOrdersEntity> orders) {
-//        int batchSize = 50;
-//
-//        // 這裡的 Session 類別，現在已經正確對應到 org.hibernate.Session 了
-//        Session session = entityManager.unwrap(Session.class);
-//
-//        session.doWork(connection -> {
-//            String sql = "UPDATE Area SET qty = qty + ? WHERE events_id = ? AND area_name = ?";
-//            try (PreparedStatement ps = connection.prepareStatement(sql)) {
-//                for (int i = 0; i < orders.size(); i++) {
-//                    Orders data = orders.get(i);
-//
-//                    ps.setInt(1, data.getOrderQty());
-//                    ps.setInt(2, data.getEventsId());
-//                    ps.setString(3, data.getOrderArea());
-//
-//                    ps.addBatch(); //把每筆資料都暫存在記憶體中
-//                    //不使用.executeUpdate();即使修改properties 還是會修改table
-//
-//                    if ((i + 1) % batchSize == 0) {
-//                        ps.executeBatch(); //這一行執行完，JDBC 就會自動清空這 50 筆參數的記憶體了
-//                    }
-//                }
-//                ps.executeBatch(); //少於50筆資料此行送出
-//            }
-//        });
-
-
         // MyBatis 會自動走你在 XML 寫的 <foreach> SQL
 
         int result = myBatisPlusAreaMapper.refundQty(orders);

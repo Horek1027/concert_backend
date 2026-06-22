@@ -561,36 +561,79 @@ private final SecureRandom secureRandom = new SecureRandom();
 //        }
 //        return  new RestfulResponse<>("-0001", "搜尋失敗", null);
 //    }
+    @Transactional
     @Override
     public RestfulResponse<String> cancelOrders(OrderCancelRequest req) {
-
-//        log.info("收到的資料:" + req);
-
-        if (req != null) {
+            try{
+                // log.info("收到的資料:" + req);
+                if (req != null) {
 //            int count = ordersRepository.updateStatusByOrderIds(req.getOrdersId());
-            int count = myBatisPlusOrdersMapper.update(
-                    null,
-                    new LambdaUpdateWrapper<MyBatisPlusOrdersEntity>()
-                            .set(MyBatisPlusOrdersEntity::getOrderStatus, OrderStatus.CANCELLED.getCode())
-                            .in(MyBatisPlusOrdersEntity::getOrderId, req.getOrdersId())
-            );
-            System.out.println("更新筆數 = " + count);
+                    int count = myBatisPlusOrdersMapper.update(
+                            null,
+                            new LambdaUpdateWrapper<MyBatisPlusOrdersEntity>()
+                                    .set(MyBatisPlusOrdersEntity::getOrderStatus, OrderStatus.CANCELLED.getCode())
+                                    .in(MyBatisPlusOrdersEntity::getOrderId, req.getOrdersId())
+                    );
+                    System.out.println("更新筆數 = " + count);
+//            List<Orders> orders = ordersRepository.findByUserIdAndEventsId(req.getOrdersId());
+                    List<MyBatisPlusOrdersEntity> orders = myBatisPlusOrdersMapper.selectList(
+                            new LambdaQueryWrapper<MyBatisPlusOrdersEntity>()
+                                    .in(MyBatisPlusOrdersEntity::getOrderId, req.getOrdersId())
+                    );
+                    // 3. 歸還 postgreSQL 庫存
+                    if (!areaService.refundQty(orders)) {
+                        return new RestfulResponse<>
+                                ("-0001", "失敗", "取消失敗");
+                    }
+                    // 💡 進階安全寫法：確保 DB Commit 成功後才發送 Kafka 訊息給 RocksDB
+                    // 4.核心優化：準備發送給 KStream 的 RocksDB 補償訊息
+                    // 為了避免重複聚合干擾，比照前面 KStream 的設計，orderId 加上 "RELEASE_" 前綴
+                    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                            @Override
+                            public void afterCommit() {
+                                for (MyBatisPlusOrdersEntity order : orders) {
+                                    ReserveRequest releaseReq = new ReserveRequest();
+                                    releaseReq.setOrderId("RELEASE_" + order.getOrderId());
+                                    releaseReq.setEventsId(order.getEventsId());
+                                    releaseReq.setOrderArea(order.getOrderArea());
+                                    releaseReq.setQty(order.getOrderQty());
+                                    releaseReq.setAction("RELEASE");
+                                    releaseReq.setTotalSegments(1); // 獨立事件，不需要等待聚合
+                                    String kafkaKey = order.getEventsId() + "_" + order.getOrderArea();
 
-//            List<Orders> orders = ordersRepository.
-//                    findByUserIdAndEventsId(req.getOrdersId());
-
-            List<MyBatisPlusOrdersEntity> orders = myBatisPlusOrdersMapper.selectList(
-                    new LambdaQueryWrapper<MyBatisPlusOrdersEntity>()
-                            .in(MyBatisPlusOrdersEntity::getOrderId, req.getOrdersId())
-            );
-
-            if (!areaService.refundQty(orders)) {
-                return new RestfulResponse<>
-                        ("-0001", "失敗", "取消失敗");
+                                    // 發送至 Kafka，讓 KStream 去更新 RocksDB
+                                    kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, kafkaKey, releaseReq);
+                                    log.info("【訂單取消-發送補償】已發送 RELEASE 訊息至 Kafka. Key: {}, Qty: {}, OrderId: {}",
+                                            kafkaKey, order.getOrderQty(), order.getOrderId());
+                                }
+                                log.info("【訂單取消】DB 提交成功，釋放 RocksDB 庫存訊息已送出");
+                            }
+                        });
+                    } else {
+                        // 如果當前沒有 Spring 事務，就直接發送
+                        for (MyBatisPlusOrdersEntity order : orders) {
+                            ReserveRequest payload = new ReserveRequest();
+                            payload.setOrderId(String.valueOf(order.getOrderId()));
+                            payload.setEventsId(order.getEventsId());
+                            payload.setOrderArea(order.getOrderArea());
+                            payload.setQty(order.getOrderQty());
+                            payload.setAction("RELEASE");
+                            payload.setTotalSegments(1); // 獨立事件，不需要等待聚合
+                            String kafkaKey = order.getEventsId() + "_" + order.getOrderArea();
+                            // 發送至 Kafka，讓 KStream 去更新 RocksDB
+                            kafkaTemplate.send(KafkaTopics.RESERVE_REQUEST, kafkaKey, payload);
+                            log.info("【訂單取消-發送補償】已發送 RELEASE 訊息至 Kafka. Key: {}, Qty: {}, OrderId: {}",
+                                    kafkaKey, order.getOrderQty(), order.getOrderId());
+                        }
+                    }
+                    return new RestfulResponse<>
+                            ("0000", "成功", "取消成功");
+                }
+            } catch (Exception e) {
+                log.error("【❌ 取消訂單異常】", e);
+                return new RestfulResponse<>("-0001", "失敗", "系統異常：" + e.getMessage());
             }
-            return new RestfulResponse<>
-                    ("0000", "成功", "取消成功");
-        }
         return new RestfulResponse<>
                 ("-0001", "失敗", "取消失敗");
     }
